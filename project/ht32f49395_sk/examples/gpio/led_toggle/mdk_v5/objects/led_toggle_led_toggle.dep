@@ -1,0 +1,279 @@
+Dependencies for Project 'led_toggle', Target 'led_toggle': (DO NOT MODIFY !)
+CompilerVersion: 6240000::V6.24::ARMCLANG
+F (..\src\ht32f493x5_clock.c)(0x6ABF4DD6)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_clock.o -MMD)
+I (..\inc\ht32f493x5_clock.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\src\ht32f493x5_int.c)(0x6ABF4DD6)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_int.o -MMD)
+I (..\inc\ht32f493x5_int.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\src\main.c)(0x6ABF4DD6)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/main.o -MMD)
+I (..\..\..\..\..\ht32f493x5_board\ht32f493x5_board.h)(0x6AA8BD15)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+I (..\inc\ht32f493x5_clock.h)(0x6ABF4DD5)
+F (..\..\..\..\..\ht32f493x5_board\ht32f493x5_board.c)(0x6A97EED0)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_board.o -MMD)
+I (..\..\..\..\..\ht32f493x5_board\ht32f493x5_board.h)(0x6AA8BD15)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\..\..\..\..\..\libraries\drivers\src\ht32f493x5_crm.c)(0x6ABF4DC8)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_crm.o -MMD)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\..\..\..\..\..\libraries\drivers\src\ht32f493x5_usart.c)(0x6ABF4DC8)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_usart.o -MMD)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\..\..\..\..\..\libraries\drivers\src\ht32f493x5_gpio.c)(0x6ABF4DC8)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_gpio.o -MMD)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\..\..\..\..\..\libraries\drivers\src\ht32f493x5_misc.c)(0x6ABF4DC8)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/ht32f493x5_misc.o -MMD)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.c)(0x6ABF4DBC)(-xc -std=c90 --target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -c-fno-rtti -funsigned-char -fshort-enums -fshort-wchar-gdwarf-4 -O1 -ffunction-sections -Wno-packed -Wno-missing-variable-declarations -Wno-missing-prototypes -Wno-missing-noreturn -Wno-sign-conversion -Wno-nonportable-include-path -Wno-reserved-id-macro -Wno-unused-macros -Wno-documentation-unknown-command -Wno-documentation -Wno-license-management -Wno-parentheses-equality -Wno-reserved-identifier -I ../../../../../../libraries/drivers/inc -I ../../../../../../libraries/cmsis/cm4/core_support -I ../../../../../../libraries/cmsis/cm4/device_support -I ../inc -I ../../../../../ht32f493x5_board-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-D__UVISION_VERSION="543" -DUSE_HT32F49395_100LQFP -DUSE_HT32F49395_100LQFP -DUSE_STDPERIPH_DRIVER -DUSE_HT32F49395_SK-o ./objects/system_ht32f493x5.o -MMD)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\ht32f493x5.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\core_support\core_cm4.h)(0x6ABF4DBB)
+I (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\system_ht32f493x5.h)(0x6ABF4DBC)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_def.h)(0x6ABF4DC7)
+I (..\inc\ht32f493x5_conf.h)(0x6ABF4DD5)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crm.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_tmr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_rtc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_bpr.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_gpio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_i2c.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usart.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_pwc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_can.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_adc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dac.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_spi.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_dma.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_debug.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_flash.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_crc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wwdt.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_wdt.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_exint.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_sdio.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_xmc.h)(0x6ABF4DC8)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_acc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_misc.h)(0x6ABF4DC7)
+I (..\..\..\..\..\..\libraries\drivers\inc\ht32f493x5_usb.h)(0x6ABF4DC7)
+F (..\..\..\..\..\..\libraries\cmsis\cm4\device_support\startup\mdk\startup_ht32f493x5.s)(0x6ABF4DBC)(--target=arm-arm-none-eabi -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard -masm=auto  -Wa,armasm,--diag_suppress=A1950W -c-gdwarf-4-IC:/Users/user/AppData/Local/Arm/Packs/Holtek/HT32F493x5_DFP/1.0.6/Device/Include-Wa,armasm,--pd,"__UVISION_VERSION SETA 543" -Wa,armasm,--pd,"USE_HT32F49395_100LQFP SETA 1"-o ./objects/startup_ht32f493x5.o)
+F (..\readme.txt)(0x6ABF4DD5)()

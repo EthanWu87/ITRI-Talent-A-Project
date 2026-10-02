@@ -1,0 +1,15 @@
+/**
+  **************************************************************************
+  * @file     readme.txt
+  * @brief    readme
+  **************************************************************************
+  */
+
+  this demo is based on the ht32f49395_sk board, in this demo, shows how to use
+  halfduplex mode transfer data by interrupt mode. use single line switch
+  realize data send and receive.
+  the pins connection as follow:
+  - spi2 slaver               spi1 master
+    pb12(cs)        <--->     pa4(cs)
+    pb13(sck)       <--->     pa5(sck)
+    pb14(miso)      <--->     pa7(mosi)
