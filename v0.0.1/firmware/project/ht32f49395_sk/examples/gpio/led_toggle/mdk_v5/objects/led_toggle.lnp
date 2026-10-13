@@ -1,0 +1,15 @@
+--cpu=Cortex-M4.fp.sp
+".\objects\ht32f493x5_clock.o"
+".\objects\ht32f493x5_int.o"
+".\objects\main.o"
+".\objects\ht32f493x5_board.o"
+".\objects\ht32f493x5_crm.o"
+".\objects\ht32f493x5_usart.o"
+".\objects\ht32f493x5_gpio.o"
+".\objects\ht32f493x5_misc.o"
+".\objects\system_ht32f493x5.o"
+".\objects\startup_ht32f493x5.o"
+--strict --scatter ".\objects\led_toggle.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\listings\led_toggle.map" -o .\objects\led_toggle.axf
