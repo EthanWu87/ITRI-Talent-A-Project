@@ -428,6 +428,21 @@ bool mr60bha2_get_human_detected(uint8_t *detected)
     return true;
 }
 
+bool mr60bha2_get_breath_rate(float *breath_rate)
+{
+	bool updated;
+
+	if(breath_rate == NULL)
+	{
+		return false;
+	}
+
+	*breath_rate = mr60bha2_data.breath_rate;
+	updated = mr60bha2_data.breath_rate_updated;
+	mr60bha2_data.breath_rate_updated = false;
+	return updated;
+}
+
 bool mr60bha2_get_heart_rate(float *heart_rate)
 {
     bool updated;

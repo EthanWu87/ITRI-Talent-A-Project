@@ -50,12 +50,21 @@ typedef struct
 	bool human_detected_updated;
 } MR60BHA2_Data_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void mr60bha2_init(void);
 void mr60bha2_receive_byte(uint8_t data);
 void mr60bha2_process(void);
 void mr60bha2_parse_byte(uint8_t data);
 bool mr60bha2_get_human_detected(uint8_t *detected);
+bool mr60bha2_get_breath_rate(float *breath_rate);
 bool mr60bha2_get_heart_rate(float *heart_rate);
 bool mr60bha2_get_distance(float *distance_cm);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -27,9 +27,13 @@
 
 /* includes ------------------------------------------------------------------*/
 #include "ht32f493x5_int.h"
+#include "bmc81m001.h"
 #include "mr60bha2.h"
-#include "BMC81M001.h"
 #include "hm01b0.h"
+
+extern void flow_buzzer_tick(uint32_t now);
+
+__IO uint32_t uwTick = 0; 
 
 /** @addtogroup HT32F493x5_periph_examples
   * @{
@@ -134,6 +138,19 @@ void PendSV_Handler(void)
   */
 void SysTick_Handler(void)
 {
+	uwTick++;             
+  flow_buzzer_tick(uwTick);
+	
+	/* toggle led */
+  if((uwTick % 200) == 0)
+  {
+    ht32_led_toggle(LED3);
+  }
+}
+
+uint32_t SysTick_GetTick(void)
+{
+	return uwTick;   
 }
 
 void USART2_IRQHandler(void)

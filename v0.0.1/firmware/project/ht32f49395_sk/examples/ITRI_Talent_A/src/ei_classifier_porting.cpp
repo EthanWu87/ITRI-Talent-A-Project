@@ -17,11 +17,12 @@
 
 #include "edge-impulse-sdk/porting/ei_classifier_porting.h"
 
-#include <stddef.h> // for size_t
-#include <string.h> // for memse
 #include "ht32f493x5_board.h"
 #include "ht32f493x5_clock.h"
 #include "ht32f493x5_int.h"
+
+#include <stddef.h> // for size_t
+#include <string.h> // for memse
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
