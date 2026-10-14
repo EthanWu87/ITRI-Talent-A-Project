@@ -153,11 +153,11 @@ uint32_t SysTick_GetTick(void)
 	return uwTick;   
 }
 
-void USART2_IRQHandler(void)
+void UART7_IRQHandler(void)
 {
-  if(usart_interrupt_flag_get(USART2, USART_RDBF_FLAG) != RESET)
+  if(usart_interrupt_flag_get(MR60BHA2_USART_PORT, USART_RDBF_FLAG) != RESET)
   {
-    mr60bha2_receive_byte((uint8_t)usart_data_receive(USART2));
+    mr60bha2_receive_byte((uint8_t)usart_data_receive(MR60BHA2_USART_PORT));
   }
 }
 

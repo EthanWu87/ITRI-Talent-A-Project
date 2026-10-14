@@ -17,7 +17,7 @@
 #define EI_BUFFER_SIZE 9216
 
 #define MR60BHA2_BREATH_RATE_MIN 12.0f
-#define MR60BHA2_BREATH_RATE_MAX 20.0f
+#define MR60BHA2_BREATH_RATE_MAX 30.0f
 #define MR60BHA2_HEART_RATE_MIN 50.0f
 #define MR60BHA2_HEART_RATE_MAX 150.0f
 #define MR60BHA2_INITIAL_ABNORMAL_MS 2000U
@@ -31,6 +31,12 @@
 extern uint8_t hm01b0_frame_buffer[HM01B0_IMAGE_SIZE_BYTES];
 
 static uint8_t ei_img_crop_buffer[EI_BUFFER_SIZE];   // crop img form 160*120 to 96*96 (center crop) 
+
+// Latest radar samples shared by alarm processing and UART telemetry.
+static float breath_rate;
+static float heart_rate;
+static bool breath_rate_received;
+static bool heart_rate_received;
 
 static volatile bool mr60bha2_abnormal;
 static volatile bool mr60bha2_level2_alert;
@@ -52,6 +58,29 @@ static bool flow_vital_signs_abnormal(float breath_rate, float heart_rate)
 static void flow_send_report(const char *message)
 {
 	printf("REPORT: %s\r\n", message);
+}
+
+static void flow_send_vital_signs(void)
+{
+	ei_printf("VITALS: heart=");
+	if(heart_rate_received && isfinite(heart_rate))
+	{
+		ei_printf_float(heart_rate);
+	}
+	else
+	{
+		ei_printf("N/A");
+	}
+	ei_printf(" breath=");
+	if(breath_rate_received && isfinite(breath_rate))
+	{
+		ei_printf_float(breath_rate);
+	}
+	else
+	{
+		ei_printf("N/A");
+	}
+	ei_printf("\r\n");
 }
 
 extern "C" void flow_buzzer_tick(uint32_t now)
@@ -90,16 +119,29 @@ extern "C" void flow_buzzer_tick(uint32_t now)
 static void flow_process_mr60bha2(void)
 {
 	static bool abnormal_tracking;
-	static float breath_rate;
-	static float heart_rate;
+	static uint8_t human_detected;
 	bool breath_updated;
 	bool heart_updated;
 	uint32_t now = SysTick_GetTick();
 
 	mr60bha2_process();
+	mr60bha2_get_human_detected(&human_detected);
 
 	breath_updated = mr60bha2_get_breath_rate(&breath_rate);
 	heart_updated = mr60bha2_get_heart_rate(&heart_rate);
+	breath_rate_received = breath_rate_received || breath_updated;
+	heart_rate_received = heart_rate_received || heart_updated;
+
+	// Unknown presence at startup is treated as absent until a human frame arrives.
+	// Handle absence even when no new vital-sign sample accompanies it.
+	if(human_detected == 0U)
+	{
+		abnormal_tracking = false;
+		mr60bha2_abnormal = false;
+		mr60bha2_level2_alert = false;
+		mr60bha2_abnormal_since = 0U;
+		return;
+	}
 
 	if(!breath_updated && !heart_updated)
 	{
@@ -284,6 +326,7 @@ int ei_main(void)
 						ei_printf("\r\n");
 					}
 				#endif
+				flow_send_vital_signs();
 				printf("INF_E\r\n");
 			}
 		}

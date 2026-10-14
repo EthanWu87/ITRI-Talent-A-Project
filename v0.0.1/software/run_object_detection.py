@@ -44,6 +44,28 @@ BOX_RE = re.compile(
 )
 
 
+VITALS_RE = re.compile(
+    r'^VITALS: heart=(' + NUMBER + r'|N/A) breath=(' + NUMBER + r'|N/A)[ \t\r]*$',
+    re.MULTILINE
+)
+
+
+def parse_vital_signs(text):
+    """Return latest heart/breath rates, or None for unavailable samples."""
+    match = VITALS_RE.search(text)
+    if match is None:
+        return None, None
+    values = []
+    for token in match.groups():
+        value = None if token == 'N/A' else float(token)
+        values.append(value if value is not None and math.isfinite(value) and value >= 0 else None)
+    return tuple(values)
+
+
+def format_rate(value):
+    return 'N/A' if value is None else f'{value:.1f}'
+
+
 def parse_prediction(text, threshold=CONFIDENCE_THRESHOLD):
     """回傳 timing 與偵測串列；保留同類別的多個物件。"""
     timing = TIMING_RE.search(text)
@@ -150,13 +172,13 @@ class StreamParser:
 
 def page_layout(display_height, count, page=0):
     """Fixed-height table with reserved header and footer space."""
-    rows = max(1, (display_height - 170) // 26)
+    rows = max(1, (display_height - 222) // 26)
     pages = max(1, (count + rows - 1) // rows)
     return rows, pages, max(0, min(page, pages - 1))
 
 
 def draw_prediction_panel(frame, dsp, inference, anomaly, detections, fps,
-                          scale=DISPLAY_SCALE, centroids=False, page=0):
+                          scale=DISPLAY_SCALE, centroids=False, page=0, vitals=(None, None)):
     import cv2
     import numpy as np
 
@@ -197,20 +219,23 @@ def draw_prediction_panel(frame, dsp, inference, anomaly, detections, fps,
     put(f'FPS: {fps:.2f} | DSP: {dsp} ms | Inference: {inference} ms', 16, 55,
         max_width=PANEL_WIDTH - 32)
     put(f'Anomaly: {anomaly} ms | Detections: {len(detections)}', 16, 80)
+    heart_rate, breath_rate = vitals
+    put(f'Heart rate: {format_rate(heart_rate)} bpm', 16, 106)
+    put(f'Breath rate: {format_rate(breath_rate)} breaths/min', 16, 132)
     columns = (16, 65, 200, 310, 430)
     for x, title in zip(columns, ('ID', 'Label', 'Confidence', 'x, y', 'w, h')):
-        put(title, x, 112, color=(170, 190, 210))
-    cv2.line(panel, (16, 121), (PANEL_WIDTH - 16, 121), (80, 80, 80), 1)
+        put(title, x, 164, color=(170, 190, 210))
+    cv2.line(panel, (16, 173), (PANEL_WIDTH - 16, 173), (80, 80, 80), 1)
     rows, pages, page = page_layout(display_height, len(detections), page)
     start = page * rows
     for offset, box in enumerate(detections[start:start + rows]):
-        y = 144 + offset * 26
+        y = 196 + offset * 26
         values = (f'#{start + offset + 1}', box['label'], f"{box['value'] * 100:.2f}%",
                   f"{box['x']}, {box['y']}", f"{box['width']}, {box['height']}")
         for x, value, available in zip(columns, values, (43, 125, 100, 110, 114)):
             put(value, x, y, max_width=available)
     if not detections:
-        put('No objects above display threshold', 16, 144)
+        put('No objects above display threshold', 16, 196)
     cv2.line(panel, (16, display_height - 34), (PANEL_WIDTH - 16, display_height - 34),
              (80, 80, 80), 1)
     put(f'Page {page + 1}/{pages} | A/D or Left/Right | Q: quit',
@@ -235,8 +260,8 @@ def main():
         args_parser.error('Dimensions, scale and baud must be positive')
     if not math.isfinite(args.timeout) or args.timeout <= 0 or not 0 <= args.threshold <= 1:
         args_parser.error('Timeout must be positive and finite; threshold must be between 0 and 1')
-    if args.height * args.scale < 200:
-        args_parser.error('Display height must be at least 200 pixels; increase --scale')
+    if args.height * args.scale < 252:
+        args_parser.error('Display height must be at least 252 pixels; increase --scale')
     try:
         import serial
         import numpy as np
@@ -249,6 +274,7 @@ def main():
     last_result_time = None
     page = 0
     latest = None
+    latest_vitals = (None, None)
     try:
         with serial.Serial(args.port, args.baud, timeout=0.05) as ser:
             print(f'Connected: {args.port} @ {args.baud}. Press Q or Esc to quit.')
@@ -266,15 +292,18 @@ def main():
                     except ValueError as error:
                         print(f'Prediction parse error: {error}')
                         continue
+                    latest_vitals = parse_vital_signs(text)
                     now = time.monotonic()
                     fps = 1.0 / (now - last_result_time) if last_result_time is not None else 0.0
                     last_result_time = now
                     frame = np.frombuffer(raw_frame, dtype=np.uint8).reshape(args.height, args.width).copy()
                     latest = (frame, dsp, inference, anomaly, detections, fps)
                     _, _, page = page_layout(args.height * args.scale, len(detections), page)
-                    display = draw_prediction_panel(*latest, args.scale, args.centroids, page)
+                    display = draw_prediction_panel(*latest, args.scale, args.centroids, page, vitals=latest_vitals)
                     cv2.imshow(WINDOW_NAME, display)
                     print(f'\nDSP: {dsp} ms | Inference: {inference} ms | Objects: {len(detections)}')
+                    print(f'Heart: {format_rate(latest_vitals[0])} bpm | '
+                          f'Breath: {format_rate(latest_vitals[1])} breaths/min')
                     for box in detections:
                         print(f"  {box['label']} ({box['value']:.5f}) "
                               f"[ x: {box['x']}, y: {box['y']}, width: {box['width']}, height: {box['height']} ]")
@@ -286,7 +315,7 @@ def main():
                 if latest is not None and key in previous_keys + next_keys:
                     _, pages, page = page_layout(args.height * args.scale, len(latest[4]), page)
                     page = (page + (1 if key in next_keys else -1)) % pages
-                    cv2.imshow(WINDOW_NAME, draw_prediction_panel(*latest, args.scale, args.centroids, page))
+                    cv2.imshow(WINDOW_NAME, draw_prediction_panel(*latest, args.scale, args.centroids, page, vitals=latest_vitals))
                 if cv2.getWindowProperty(WINDOW_NAME, cv2.WND_PROP_VISIBLE) < 1:
                     break
     except KeyboardInterrupt:

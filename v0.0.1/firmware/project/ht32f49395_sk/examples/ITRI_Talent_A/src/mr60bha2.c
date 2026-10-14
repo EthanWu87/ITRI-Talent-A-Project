@@ -82,7 +82,7 @@ static void mr60bha2_usart_configuration(void)
   /* Configure the usart2 rx pin */
   gpio_init_struct.gpio_drive_strength = GPIO_DRIVE_STRENGTH_STRONGER;
   gpio_init_struct.gpio_out_type  = GPIO_OUTPUT_PUSH_PULL;
-  gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
+  gpio_init_struct.gpio_mode = GPIO_MODE_MUX;
   gpio_init_struct.gpio_pins = MR60BHA2_USART_RX_PIN;
   gpio_init_struct.gpio_pull = GPIO_PULL_UP;
   gpio_init(MR60BHA2_USART_RX_GPIO_PORT, &gpio_init_struct);
