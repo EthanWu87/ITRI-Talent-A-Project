@@ -60,17 +60,25 @@ extern "C" {
 /******************** define led ********************/
 typedef enum
 {
-  LED3                                   = 0
+  LED2                                   = 0,
+  LED3                                   = 1,
+  LED4                                   = 2
 } led_type;
 
-#define LED_NUM                          1
+#define LED_NUM                          3
 
 #if defined (USE_HT32F49395_SK)
+#define LED2_PIN                         GPIO_PINS_13
+#define LED2_GPIO                        GPIOD
+#define LED2_GPIO_CRM_CLK                CRM_GPIOD_PERIPH_CLOCK
 
-#define LED3_PIN                         GPIO_PINS_11
-#define LED3_GPIO                        GPIOE
-#define LED3_GPIO_CRM_CLK                CRM_GPIOE_PERIPH_CLOCK
+#define LED3_PIN                         GPIO_PINS_14
+#define LED3_GPIO                        GPIOD
+#define LED3_GPIO_CRM_CLK                CRM_GPIOD_PERIPH_CLOCK
 
+#define LED4_PIN                         GPIO_PINS_15
+#define LED4_GPIO                        GPIOD
+#define LED4_GPIO_CRM_CLK                CRM_GPIOD_PERIPH_CLOCK
 #endif
 
 /**************** define print uart ******************/

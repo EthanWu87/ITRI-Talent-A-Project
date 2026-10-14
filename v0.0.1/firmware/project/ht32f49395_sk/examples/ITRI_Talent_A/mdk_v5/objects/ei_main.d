@@ -224,4 +224,4 @@ objects/ei_main.o: ../src/ei_main.cpp ../inc/ei_main.h \
  ../inc/hm01b0.h \
  ../../../../../middlewares/i2c_application_library/i2c_application.h \
  ../inc/mr60bha2.h ../inc/bmc81m001.h \
- ../../../../../libraries/drivers/inc/ht32.h
+ ../../../../../libraries/drivers/inc/ht32.h ../inc/dw1000.h

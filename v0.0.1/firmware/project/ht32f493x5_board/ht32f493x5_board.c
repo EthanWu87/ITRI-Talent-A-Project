@@ -41,9 +41,9 @@
 #define STEP_DELAY_MS                    50
 
 /* ht32f49395_sk led resouce array */
-gpio_type *led_gpio_port[LED_NUM]        = {LED3_GPIO};
-uint16_t led_gpio_pin[LED_NUM]           = {LED3_PIN};
-crm_periph_clock_type led_gpio_crm_clk[LED_NUM] = {LED3_GPIO_CRM_CLK};
+gpio_type *led_gpio_port[LED_NUM]        = {LED2_GPIO, LED3_GPIO, LED4_GPIO};
+uint16_t led_gpio_pin[LED_NUM]           = {LED2_PIN, LED3_PIN, LED4_PIN};
+crm_periph_clock_type led_gpio_crm_clk[LED_NUM] = {LED2_GPIO_CRM_CLK, LED3_GPIO_CRM_CLK, LED4_GPIO_CRM_CLK};
 
 /* delay variable */
 static __IO uint32_t fac_us;
@@ -243,9 +243,12 @@ void ht32_board_init()
   delay_init();
 
   /* configure led in ht32f49395_sk_board */
+  ht32_led_init(LED2);
   ht32_led_init(LED3);
-
+  ht32_led_init(LED4);
+  ht32_led_off(LED2);
   ht32_led_off(LED3);
+  ht32_led_off(LED4);
 
   /* configure button in ht32f49395_sk board */
   ht32_button_init();

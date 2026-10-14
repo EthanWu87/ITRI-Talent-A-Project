@@ -1,4 +1,5 @@
 #include "hm01b0.h"
+#include "ht32f493x5_int.h"
 
 int hm01b0_init(hm01b0_t *camera, uint8_t *buffer, uint32_t size)
 {
@@ -120,7 +121,7 @@ int hm01b0_reset(hm01b0_t *camera)
       return 0;
     }
 
-    delay_ms(100);
+    SysTick_DelayMs(100U);
   }
 
   return -1;

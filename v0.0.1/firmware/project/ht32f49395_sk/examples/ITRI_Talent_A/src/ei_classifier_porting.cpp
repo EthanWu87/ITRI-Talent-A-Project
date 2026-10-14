@@ -79,7 +79,10 @@ __attribute__((weak)) EI_IMPULSE_ERROR ei_run_impulse_check_canceled()
 
 __attribute__((weak)) EI_IMPULSE_ERROR ei_sleep(int32_t time_ms)
 {
-	delay_ms(time_ms);
+	if(time_ms > 0)
+	{
+		SysTick_DelayMs((uint32_t)time_ms);
+	}
 	return EI_IMPULSE_OK;
 }
 

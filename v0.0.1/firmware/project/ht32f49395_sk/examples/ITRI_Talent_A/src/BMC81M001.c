@@ -51,8 +51,8 @@ int resLength = 0;
 uint8_t uselessBuff[200];
 char OneNetReciveBuff[200];
 static volatile uint8_t BMC81M001_rxBuffer[BMC81M001_RX_BUFFER_SIZE];
-static volatile uint8_t BMC81M001_rxHead;
-static volatile uint8_t BMC81M001_rxTail;
+static volatile uint16_t BMC81M001_rxHead;
+static volatile uint16_t BMC81M001_rxTail;
 /* Global functions ----------------------------------------------------------------------------------------*/
 
 /*********************************************************************************************************//**
@@ -604,19 +604,29 @@ static void BMC81M001_uartReadByte(uint8_t *data)
   if(BMC81M001_rxHead != BMC81M001_rxTail)
   {
     *data = BMC81M001_rxBuffer[BMC81M001_rxTail];
-    BMC81M001_rxTail++;
+    BMC81M001_rxTail = (uint16_t)((BMC81M001_rxTail + 1U) % BMC81M001_RX_BUFFER_SIZE);
   }
+}
+
+bool BMC81M001_readByte(uint8_t *data)
+{
+  if(data == NULL || BMC81M001_uartByteAvailable() == RESET)
+  {
+    return false;
+  }
+  BMC81M001_uartReadByte(data);
+  return true;
 }
 
 void BMC81M001_RxIrqHandler(void)
 {
   uint8_t data;
-  uint8_t nextHead;
+  uint16_t nextHead;
 
   while(usart_flag_get(BMC81M001_USART_PORT, USART_RDBF_FLAG) != RESET)
   {
     data = (uint8_t)usart_data_receive(BMC81M001_USART_PORT);
-    nextHead = (uint8_t)(BMC81M001_rxHead + 1U);
+    nextHead = (uint16_t)((BMC81M001_rxHead + 1U) % BMC81M001_RX_BUFFER_SIZE);
 
     if(nextHead != BMC81M001_rxTail)
     {

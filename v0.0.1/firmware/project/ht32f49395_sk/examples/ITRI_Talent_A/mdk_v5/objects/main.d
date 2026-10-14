@@ -36,4 +36,4 @@ objects/main.o: ../src/main.c \
  ../inc/ht32f493x5_clock.h \
  ../../../../../middlewares/i2c_application_library/i2c_application.h \
  ../inc/bmc81m001.h ../../../../../libraries/drivers/inc/ht32.h \
- ../inc/mr60bha2.h ../inc/hm01b0.h
+ ../inc/mr60bha2.h ../inc/hm01b0.h ../inc/dw1000.h

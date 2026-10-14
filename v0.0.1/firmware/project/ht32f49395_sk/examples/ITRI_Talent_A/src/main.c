@@ -4,6 +4,7 @@
 #include "bmc81m001.h"
 #include "mr60bha2.h"
 #include "hm01b0.h"
+#include "dw1000.h"
 
 #define UART_BAUD_RATE    2250000
 
@@ -40,9 +41,6 @@ int main(void)
 {	
 	system_clock_config();
 
-	/* configure SysTick clock source to AHB clock */
-	systick_clock_source_config(SYSTICK_CLOCK_SOURCE_AHBCLK_NODIV);
-	systick_interrupt_config(MS_TICK);
 	
 	ht32_board_init();
 
@@ -50,6 +48,7 @@ int main(void)
 
 	BMC81M001_Init(BMC81M001_baudRate);
 	mr60bha2_init();
+	dw1000_init();
 	
 	/* Beep initialization */
 	gpio_init_type gpio_init_struct;
@@ -63,6 +62,10 @@ int main(void)
   gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
   gpio_init(GPIOB, &gpio_init_struct);
 	gpio_bits_reset(GPIOB, GPIO_PINS_1);
+
+	/* Start the alarm clock after board and buzzer initialization. */
+	systick_clock_source_config(SYSTICK_CLOCK_SOURCE_AHBCLK_NODIV);
+	systick_interrupt_config(MS_TICK);
 	
 	printf("\r\n--- System Starting ---\r\n");
 

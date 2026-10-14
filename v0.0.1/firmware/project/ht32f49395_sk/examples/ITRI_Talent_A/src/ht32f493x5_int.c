@@ -30,6 +30,7 @@
 #include "bmc81m001.h"
 #include "mr60bha2.h"
 #include "hm01b0.h"
+#include "dw1000.h"
 
 extern void flow_buzzer_tick(uint32_t now);
 
@@ -153,6 +154,16 @@ uint32_t SysTick_GetTick(void)
 	return uwTick;   
 }
 
+void SysTick_DelayMs(uint32_t milliseconds)
+{
+  uint32_t started = SysTick_GetTick();
+
+  while((uint32_t)(SysTick_GetTick() - started) < milliseconds)
+  {
+    __NOP();
+  }
+}
+
 void UART7_IRQHandler(void)
 {
   if(usart_interrupt_flag_get(MR60BHA2_USART_PORT, USART_RDBF_FLAG) != RESET)
@@ -161,9 +172,19 @@ void UART7_IRQHandler(void)
   }
 }
 
+void UART8_IRQHandler(void)
+{
+  while(usart_interrupt_flag_get(DW1000_USART_PORT, USART_RDBF_FLAG) != RESET)
+  {
+    dw1000_receive_byte((uint8_t)usart_data_receive(DW1000_USART_PORT));
+  }
+  dw1000_tx_irq_handler(DW1000_USART_PORT);
+}
+
 void UART4_IRQHandler(void)
 {
   BMC81M001_RxIrqHandler();
+  dw1000_tx_irq_handler(BMC81M001_USART_PORT);
 }
 
 /**

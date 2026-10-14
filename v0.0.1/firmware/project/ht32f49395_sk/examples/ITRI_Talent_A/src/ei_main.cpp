@@ -9,6 +9,7 @@
 #include "hm01b0.h"
 #include "mr60bha2.h"
 #include "bmc81m001.h"
+#include "dw1000.h"
 
 #include <string.h>
 
@@ -265,10 +266,11 @@ int ei_main(void)
 		while(1)
 		{
 			flow_process_mr60bha2();
-			ei_printf("\nStarting inferencing\r\n");
+			dw1000_process();
 
 			if(g_hm01b0.frame_ready)
 			{
+				ei_printf("\nStarting inferencing\r\n");
 				exint_flag_clear(HM01B0_VSYNC_EXINT_LINE);
 				nvic_irq_disable(HM01B0_VSYNC_IRQn);
 
@@ -328,6 +330,9 @@ int ei_main(void)
 				#endif
 				flow_send_vital_signs();
 				printf("INF_E\r\n");
+
+				/* Service UWB/TCP after completing the image/inference packet. */
+				dw1000_process();
 			}
 		}
 	}

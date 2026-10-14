@@ -321,6 +321,11 @@
               <FileType>1</FileType>
               <FilePath>..\src\hm01b0.c</FilePath>
             </File>
+            <File>
+              <FileName>dw1000.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\dw1000.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

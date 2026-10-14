@@ -68,7 +68,7 @@ typedef enum {
 #define BMC81M001_USART_RX_GPIO_CLK      CRM_GPIOC_PERIPH_CLOCK
 
 #define BMC81M001_USART_IRQn             UART4_IRQn
-#define BMC81M001_RX_BUFFER_SIZE         256U
+#define BMC81M001_RX_BUFFER_SIZE         2048U
 
 #define RES_MAX_LENGTH 200
 /* Exported variables --------------------------------------------------------------------------------------*/
@@ -89,6 +89,8 @@ bool BMC81M001_reset(void);
 void BMC81M001_writeBytes(char wbuf[]);
 void BMC81M001_readBytes(uint8_t rbuf[],int timeout, uint8_t reTry);
 void BMC81M001_RxIrqHandler(void);
+/* Single-consumer raw RX API; do not mix with AT/readDataTcp during DW1000 service. */
+bool BMC81M001_readByte(uint8_t *data);
 int BMC81M001_sendATCommand(char StringstrCmd[],uint8_t reTry);
 void BMC81M001_arrayAdd(char array1[],char array2[]);
 void _BMC81M001_clearBuf(void);

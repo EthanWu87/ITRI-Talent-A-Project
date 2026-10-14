@@ -33,4 +33,5 @@ objects/hm01b0.o: ../src/hm01b0.c ../inc/hm01b0.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_misc.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_usb.h \
  ../../../../ht32f493x5_board/ht32f493x5_board.h \
- ../../../../../middlewares/i2c_application_library/i2c_application.h
+ ../../../../../middlewares/i2c_application_library/i2c_application.h \
+ ../inc/ht32f493x5_int.h
