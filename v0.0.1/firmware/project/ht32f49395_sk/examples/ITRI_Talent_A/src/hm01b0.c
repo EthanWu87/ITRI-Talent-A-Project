@@ -264,12 +264,6 @@ void hm01b0_parallel_init(hm01b0_t *camera)
   gpio_init_struct.gpio_pins = HM01B0_VSYNC_PIN;
   gpio_init(HM01B0_VSYNC_PORT, &gpio_init_struct);
 
-  /* HREF(PA4) */
-  gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
-  gpio_init_struct.gpio_pull = GPIO_PULL_NONE;
-  gpio_init_struct.gpio_pins = HM01B0_HREF_PIN;
-  gpio_init(HM01B0_HREF_PORT, &gpio_init_struct);
-
   /* PCLK(PB0) */
   gpio_init_struct.gpio_mode = GPIO_MODE_INPUT;
   gpio_init_struct.gpio_pull = GPIO_PULL_DOWN;
@@ -286,17 +280,6 @@ void hm01b0_parallel_init(hm01b0_t *camera)
 
   exint_flag_clear(HM01B0_VSYNC_EXINT_LINE);
   nvic_irq_enable(HM01B0_VSYNC_IRQn, 0, 0);
-
-  /* HREF EXINT */
-  gpio_exint_line_config(HM01B0_HREF_PORT_SRC, HM01B0_HREF_PIN_SRC);
-  exint_init_struct.line_enable   = TRUE;
-  exint_init_struct.line_mode     = EXINT_LINE_INTERRUPT;
-  exint_init_struct.line_select   = HM01B0_HREF_EXINT_LINE;
-  exint_init_struct.line_polarity = EXINT_TRIGGER_RISING_EDGE;
-  exint_init(&exint_init_struct);
-
-  exint_flag_clear(HM01B0_HREF_EXINT_LINE);
-  nvic_irq_enable(HM01B0_HREF_IRQn, 1, 0);
 
   /* PCLK -> TMR3_CH3 Input Capture -> DMA request */
   tmr_input_default_para_init(&tmr_ic_init_struct);

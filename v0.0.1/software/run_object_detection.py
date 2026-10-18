@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HM01B0 + Edge Impulse object detection serial viewer.
 
-安裝: python -m pip install pyserial numpy opencv-python
+安裝: python -m pip install pyserial numpy opencv-python pillow
 執行: python run_object_detection.py --port COM3
 離開: Q / Esc，或關閉視窗。
 結果分頁: A / D 或左右方向鍵；左側始終顯示所有偵測框。
@@ -17,6 +17,9 @@ FOMO 回傳的區域不是物件完整外形，可使用 --centroids 顯示中�
 FPS 是完整影像與推論結果的接收更新率，不是感測器原始幀率。
 """
 import argparse
+from functools import lru_cache
+from pathlib import Path
+from typing import NamedTuple
 import math
 import re
 import time
@@ -45,25 +48,68 @@ BOX_RE = re.compile(
 
 
 VITALS_RE = re.compile(
-    r'^VITALS: heart=(' + NUMBER + r'|N/A) breath=(' + NUMBER + r'|N/A)[ \t\r]*$',
+    r'^VITALS: heart=(' + NUMBER + r'|N/A) breath=(' + NUMBER + r'|N/A)'
+    r'(?: status=([a-z_]+))?[ \t\r]*$',
     re.MULTILINE
 )
+VITALS_DISPLAY_TIMEOUT = 3.0
+VITAL_STATUS_LABELS = {'absent': '無人', 'multiple': '多人，不適用', 'invalid': '量測無效', 'reference': '單人，數值僅供參考'}
+VITAL_STATUS_ENGLISH = {
+    'absent': 'No person',
+    'multiple': 'Multiple people - not applicable',
+    'invalid': 'Invalid measurement',
+    'reference': 'Single person - reference only',
+}
+
+
+class VitalSigns(NamedTuple):
+    heart: float | None = None
+    breath: float | None = None
+    status: str = 'invalid'
+
+
+def parse_vital_report(text):
+    """Only explicit valid context permits reference values to be displayed."""
+    matches = list(VITALS_RE.finditer(text))
+    if not matches:
+        return VitalSigns()
+    heart, breath, status = matches[-1].groups()
+    if status not in VITAL_STATUS_LABELS:
+        return VitalSigns()  # Legacy firmware cannot establish measurement validity.
+    if status != 'reference':
+        return VitalSigns(status=status)
+    values = [None if token == 'N/A' else float(token) for token in (heart, breath)]
+    if any(value is None or not math.isfinite(value) or value <= 0 for value in values):
+        return VitalSigns()
+    return VitalSigns(*values, status)
 
 
 def parse_vital_signs(text):
-    """Return latest heart/breath rates, or None for unavailable samples."""
-    match = VITALS_RE.search(text)
-    if match is None:
-        return None, None
-    values = []
-    for token in match.groups():
-        value = None if token == 'N/A' else float(token)
-        values.append(value if value is not None and math.isfinite(value) and value >= 0 else None)
-    return tuple(values)
+    """Compatibility helper returning the two gated reference values."""
+    report = parse_vital_report(text)
+    return report.heart, report.breath
+
+
+def visible_vitals(report, received_at, now):
+    """Expire even if serial/image/inference output stops entirely."""
+    if received_at is None or now - received_at >= VITALS_DISPLAY_TIMEOUT:
+        return VitalSigns()
+    return report
 
 
 def format_rate(value):
-    return 'N/A' if value is None else f'{value:.1f}'
+    return '--' if value is None else f'{value:.1f}'
+
+
+@lru_cache(maxsize=1)
+def status_font():
+    from PIL import ImageFont
+    for name in ('C:/Windows/Fonts/msjh.ttc',
+                 '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+                 '/System/Library/Fonts/PingFang.ttc'):
+        if Path(name).is_file():
+            return ImageFont.truetype(name, 20)
+    return None
 
 
 def parse_prediction(text, threshold=CONFIDENCE_THRESHOLD):
@@ -172,13 +218,13 @@ class StreamParser:
 
 def page_layout(display_height, count, page=0):
     """Fixed-height table with reserved header and footer space."""
-    rows = max(1, (display_height - 222) // 26)
+    rows = max(1, (display_height - 248) // 26)
     pages = max(1, (count + rows - 1) // rows)
     return rows, pages, max(0, min(page, pages - 1))
 
 
 def draw_prediction_panel(frame, dsp, inference, anomaly, detections, fps,
-                          scale=DISPLAY_SCALE, centroids=False, page=0, vitals=(None, None)):
+                          scale=DISPLAY_SCALE, centroids=False, page=0, vitals=VitalSigns()):
     import cv2
     import numpy as np
 
@@ -219,23 +265,33 @@ def draw_prediction_panel(frame, dsp, inference, anomaly, detections, fps,
     put(f'FPS: {fps:.2f} | DSP: {dsp} ms | Inference: {inference} ms', 16, 55,
         max_width=PANEL_WIDTH - 32)
     put(f'Anomaly: {anomaly} ms | Detections: {len(detections)}', 16, 80)
-    heart_rate, breath_rate = vitals
+    heart_rate, breath_rate = vitals.heart, vitals.breath
     put(f'Heart rate: {format_rate(heart_rate)} bpm', 16, 106)
     put(f'Breath rate: {format_rate(breath_rate)} breaths/min', 16, 132)
+    from PIL import Image, ImageDraw
+    font_cn = status_font()
+    if font_cn is None:
+        put(VITAL_STATUS_ENGLISH[vitals.status], 16, 158, max_width=PANEL_WIDTH - 32)
+    else:
+        # OpenCV's built-in fonts cannot render Chinese status labels.
+        status_image = Image.fromarray(cv2.cvtColor(panel[139:170], cv2.COLOR_BGR2RGB))
+        ImageDraw.Draw(status_image).text((16, 0), VITAL_STATUS_LABELS[vitals.status],
+                                         font=font_cn, fill=(210, 210, 210))
+        panel[139:170] = cv2.cvtColor(np.asarray(status_image), cv2.COLOR_RGB2BGR)
     columns = (16, 65, 200, 310, 430)
     for x, title in zip(columns, ('ID', 'Label', 'Confidence', 'x, y', 'w, h')):
-        put(title, x, 164, color=(170, 190, 210))
-    cv2.line(panel, (16, 173), (PANEL_WIDTH - 16, 173), (80, 80, 80), 1)
+        put(title, x, 190, color=(170, 190, 210))
+    cv2.line(panel, (16, 199), (PANEL_WIDTH - 16, 199), (80, 80, 80), 1)
     rows, pages, page = page_layout(display_height, len(detections), page)
     start = page * rows
     for offset, box in enumerate(detections[start:start + rows]):
-        y = 196 + offset * 26
+        y = 222 + offset * 26
         values = (f'#{start + offset + 1}', box['label'], f"{box['value'] * 100:.2f}%",
                   f"{box['x']}, {box['y']}", f"{box['width']}, {box['height']}")
         for x, value, available in zip(columns, values, (43, 125, 100, 110, 114)):
             put(value, x, y, max_width=available)
     if not detections:
-        put('No objects above display threshold', 16, 196)
+        put('No objects above display threshold', 16, 222)
     cv2.line(panel, (16, display_height - 34), (PANEL_WIDTH - 16, display_height - 34),
              (80, 80, 80), 1)
     put(f'Page {page + 1}/{pages} | A/D or Left/Right | Q: quit',
@@ -260,21 +316,23 @@ def main():
         args_parser.error('Dimensions, scale and baud must be positive')
     if not math.isfinite(args.timeout) or args.timeout <= 0 or not 0 <= args.threshold <= 1:
         args_parser.error('Timeout must be positive and finite; threshold must be between 0 and 1')
-    if args.height * args.scale < 252:
-        args_parser.error('Display height must be at least 252 pixels; increase --scale')
+    if args.height * args.scale < 278:
+        args_parser.error('Display height must be at least 278 pixels; increase --scale')
     try:
         import serial
         import numpy as np
         import cv2
+        import PIL
     except ImportError as error:
-        print(f'Missing dependency: {error}\nInstall: python -m pip install pyserial numpy opencv-python')
+        print(f'Missing dependency: {error}\nInstall: python -m pip install pyserial numpy opencv-python pillow')
         return 1
 
     parser = StreamParser(args.width * args.height, args.timeout)
     last_result_time = None
     page = 0
     latest = None
-    latest_vitals = (None, None)
+    latest_vitals = VitalSigns()
+    received_vitals = VitalSigns()
     try:
         with serial.Serial(args.port, args.baud, timeout=0.05) as ser:
             print(f'Connected: {args.port} @ {args.baud}. Press Q or Esc to quit.')
@@ -292,7 +350,8 @@ def main():
                     except ValueError as error:
                         print(f'Prediction parse error: {error}')
                         continue
-                    latest_vitals = parse_vital_signs(text)
+                    received_vitals = parse_vital_report(text)
+                    latest_vitals = received_vitals
                     now = time.monotonic()
                     fps = 1.0 / (now - last_result_time) if last_result_time is not None else 0.0
                     last_result_time = now
@@ -303,10 +362,16 @@ def main():
                     cv2.imshow(WINDOW_NAME, display)
                     print(f'\nDSP: {dsp} ms | Inference: {inference} ms | Objects: {len(detections)}')
                     print(f'Heart: {format_rate(latest_vitals[0])} bpm | '
-                          f'Breath: {format_rate(latest_vitals[1])} breaths/min')
+                          f'Breath: {format_rate(latest_vitals[1])} breaths/min | '
+                          f'{VITAL_STATUS_LABELS[latest_vitals.status]}')
                     for box in detections:
                         print(f"  {box['label']} ({box['value']:.5f}) "
                               f"[ x: {box['x']}, y: {box['y']}, width: {box['width']}, height: {box['height']} ]")
+                current_vitals = visible_vitals(received_vitals, last_result_time, time.monotonic())
+                if latest is not None and current_vitals != latest_vitals:
+                    latest_vitals = current_vitals
+                    cv2.imshow(WINDOW_NAME, draw_prediction_panel(
+                        *latest, args.scale, args.centroids, page, vitals=latest_vitals))
                 key = cv2.waitKeyEx(1)
                 if key in (ord('q'), ord('Q'), 27):
                     break

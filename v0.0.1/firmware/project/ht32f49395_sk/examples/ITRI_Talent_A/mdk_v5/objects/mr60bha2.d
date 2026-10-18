@@ -32,4 +32,6 @@ objects/mr60bha2.o: ../src/mr60bha2.c ../inc/mr60bha2.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_xmc.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_acc.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_misc.h \
- ../../../../../libraries/drivers/inc/ht32f493x5_usb.h
+ ../../../../../libraries/drivers/inc/ht32f493x5_usb.h \
+ ../inc/ht32f493x5_int.h ../inc/vital_signs_filter.h \
+ C:/Program\ Files\ (x86)/Arm\ GNU\ Toolchain\ arm-none-eabi/14.2\ rel1/arm-none-eabi/include/c++/14.2.1/math.h

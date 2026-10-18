@@ -443,12 +443,12 @@
           <targetInfo name="ITRI_Talent_A" versionMatchMode="fixed"/>
         </targetInfos>
       </package>
-      <package name="EI-SDK" vendor="EdgeImpulse" version="1.95.26">
+      <package name="EI-SDK" vendor="EdgeImpulse" version="1.95.29">
         <targetInfos>
           <targetInfo name="ITRI_Talent_A" versionMatchMode="fixed"/>
         </targetInfos>
       </package>
-      <package name="ITRI-Talent-A-Project" vendor="EdgeImpulse" version="1.0.0">
+      <package name="ITRI-Talent-A-Project" vendor="EdgeImpulse" version="2.0.0">
         <targetInfos>
           <targetInfo name="ITRI_Talent_A" versionMatchMode="fixed"/>
         </targetInfos>
@@ -479,14 +479,14 @@
           <targetInfo name="ITRI_Talent_A"/>
         </targetInfos>
       </component>
-      <component Cclass="EdgeImpulse" Cgroup="SDK" Cvendor="EdgeImpulse" Cversion="1.95.26" ymlID="EdgeImpulse:SDK">
-        <package name="EI-SDK" schemaVersion="1.7.7" url="https://github.com/edgeimpulse/edge-impulse-sdk-pack/releases/download/v1.95.26/" vendor="EdgeImpulse" version="1.95.26"/>
+      <component Cclass="EdgeImpulse" Cgroup="SDK" Cvendor="EdgeImpulse" Cversion="1.95.29" condition="CMSIS packages" ymlID="EdgeImpulse:SDK">
+        <package name="EI-SDK" schemaVersion="1.7.7" url="" vendor="EdgeImpulse" version="1.95.29"/>
         <targetInfos>
           <targetInfo name="ITRI_Talent_A"/>
         </targetInfos>
       </component>
-      <component Cclass="EdgeImpulse" Cgroup="model" Csub="ITRI-Talent-A-Project" Cvendor="EdgeImpulse" Cversion="1.0.0" condition="CMSIS packages" ymlID="EdgeImpulse:model:ITRI-Talent-A-Project">
-        <package name="ITRI-Talent-A-Project" schemaVersion="1.7.7" url="" vendor="EdgeImpulse" version="1.0.0"/>
+      <component Cclass="EdgeImpulse" Cgroup="model" Csub="ITRI-Talent-A-Project" Cvendor="EdgeImpulse" Cversion="2.0.0" condition="CMSIS packages" ymlID="EdgeImpulse:model:ITRI-Talent-A-Project">
+        <package name="ITRI-Talent-A-Project" schemaVersion="1.7.7" url="" vendor="EdgeImpulse" version="2.0.0"/>
         <targetInfos>
           <targetInfo name="ITRI_Talent_A"/>
         </targetInfos>

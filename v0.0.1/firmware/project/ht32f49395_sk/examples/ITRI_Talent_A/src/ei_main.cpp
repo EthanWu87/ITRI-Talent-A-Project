@@ -17,14 +17,8 @@
 #define EI_TARGET_HEIGHT 96
 #define EI_BUFFER_SIZE 9216
 
-#define MR60BHA2_BREATH_RATE_MIN 12.0f
-#define MR60BHA2_BREATH_RATE_MAX 30.0f
-#define MR60BHA2_HEART_RATE_MIN 50.0f
-#define MR60BHA2_HEART_RATE_MAX 150.0f
-#define MR60BHA2_INITIAL_ABNORMAL_MS 2000U
-#define MR60BHA2_CONTINUOUS_ABNORMAL_MS 5000U
-#define HM01B0_INITIAL_FALL_MS 2000U
-#define HM01B0_FALL_HOLD_MS 5000U
+#define HM01B0_INITIAL_FALL_MS 3000U
+#define HM01B0_FALL_HOLD_MS 10000U
 #define FALL_CONFIDENCE 0.80f
 #define BUZZER_BEEP_INTERVAL_MS 1000U
 #define BUZZER_BEEP_LENGTH_MS 100U
@@ -33,28 +27,12 @@ extern uint8_t hm01b0_frame_buffer[HM01B0_IMAGE_SIZE_BYTES];
 
 static uint8_t ei_img_crop_buffer[EI_BUFFER_SIZE];   // crop img form 160*120 to 96*96 (center crop) 
 
-// Latest radar samples shared by alarm processing and UART telemetry.
-static float breath_rate;
-static float heart_rate;
-static bool breath_rate_received;
-static bool heart_rate_received;
-
-static volatile bool mr60bha2_abnormal;
-static volatile bool mr60bha2_level2_alert;
+// Radar vital signs are reference-only; alarms come from image fall detection.
 static volatile bool hm01b0_fall_detected;
 static volatile bool hm01b0_level2_alert;
-static volatile uint32_t mr60bha2_abnormal_since;
 static volatile uint32_t hm01b0_fall_since;
 static volatile uint32_t buzzer_started;
 static volatile uint32_t buzzer_last_beep;
-
-static bool flow_vital_signs_abnormal(float breath_rate, float heart_rate)
-{
-	return breath_rate < MR60BHA2_BREATH_RATE_MIN ||
-		breath_rate > MR60BHA2_BREATH_RATE_MAX ||
-		heart_rate < MR60BHA2_HEART_RATE_MIN ||
-		heart_rate > MR60BHA2_HEART_RATE_MAX;
-}
 
 static void flow_send_report(const char *message)
 {
@@ -63,30 +41,29 @@ static void flow_send_report(const char *message)
 
 static void flow_send_vital_signs(void)
 {
-	ei_printf("VITALS: heart=");
-	if(heart_rate_received && isfinite(heart_rate))
-	{
-		ei_printf_float(heart_rate);
-	}
-	else
-	{
-		ei_printf("N/A");
-	}
-	ei_printf(" breath=");
-	if(breath_rate_received && isfinite(breath_rate))
-	{
-		ei_printf_float(breath_rate);
-	}
-	else
-	{
-		ei_printf("N/A");
-	}
-	ei_printf("\r\n");
+    MR60BHA2_Vitals_t vitals;
+    mr60bha2_get_vitals(&vitals);
+    const char *status = "invalid";
+    if(vitals.status == MR60BHA2_VITAL_ABSENT) status = "absent";
+    else if(vitals.status == MR60BHA2_VITAL_MULTIPLE) status = "multiple";
+    else if(vitals.status == MR60BHA2_VITAL_REFERENCE) status = "reference";
+
+    ei_printf("VITALS: heart=");
+    if(vitals.status == MR60BHA2_VITAL_REFERENCE)
+        ei_printf_float(vitals.heart_rate);
+    else
+        ei_printf("N/A");
+    ei_printf(" breath=");
+    if(vitals.status == MR60BHA2_VITAL_REFERENCE)
+        ei_printf_float(vitals.breath_rate);
+    else
+        ei_printf("N/A");
+    ei_printf(" status=%s\r\n", status);
 }
 
 extern "C" void flow_buzzer_tick(uint32_t now)
 {
-	if(!mr60bha2_abnormal && !hm01b0_fall_detected)
+	if(!hm01b0_fall_detected)
 	{
 		gpio_bits_reset(GPIOB, GPIO_PINS_1);
 		buzzer_started = 0U;
@@ -94,7 +71,7 @@ extern "C" void flow_buzzer_tick(uint32_t now)
 		return;
 	}
 
-	if(mr60bha2_level2_alert || hm01b0_level2_alert)
+	if(hm01b0_level2_alert)
 	{
 		gpio_bits_set(GPIOB, GPIO_PINS_1);
 		return;
@@ -115,68 +92,6 @@ extern "C" void flow_buzzer_tick(uint32_t now)
 		buzzer_last_beep = now;
 		gpio_bits_set(GPIOB, GPIO_PINS_1);
 	}
-}
-
-static void flow_process_mr60bha2(void)
-{
-	static bool abnormal_tracking;
-	static uint8_t human_detected;
-	bool breath_updated;
-	bool heart_updated;
-	uint32_t now = SysTick_GetTick();
-
-	mr60bha2_process();
-	mr60bha2_get_human_detected(&human_detected);
-
-	breath_updated = mr60bha2_get_breath_rate(&breath_rate);
-	heart_updated = mr60bha2_get_heart_rate(&heart_rate);
-	breath_rate_received = breath_rate_received || breath_updated;
-	heart_rate_received = heart_rate_received || heart_updated;
-
-	// Unknown presence at startup is treated as absent until a human frame arrives.
-	// Handle absence even when no new vital-sign sample accompanies it.
-	if(human_detected == 0U)
-	{
-		abnormal_tracking = false;
-		mr60bha2_abnormal = false;
-		mr60bha2_level2_alert = false;
-		mr60bha2_abnormal_since = 0U;
-		return;
-	}
-
-	if(!breath_updated && !heart_updated)
-	{
-		return;
-	}
-
-	if(flow_vital_signs_abnormal(breath_rate, heart_rate))
-	{
-		if(!abnormal_tracking)
-		{
-			abnormal_tracking = true;
-			mr60bha2_abnormal_since = now;
-		}
-		if(!mr60bha2_abnormal &&
-			(now - mr60bha2_abnormal_since) >= MR60BHA2_INITIAL_ABNORMAL_MS)
-		{
-			mr60bha2_abnormal = true;
-			flow_send_report("level 1 vital signs alert");
-		}
-		if((now - mr60bha2_abnormal_since) >= MR60BHA2_CONTINUOUS_ABNORMAL_MS &&
-				!mr60bha2_level2_alert)
-		{
-			mr60bha2_level2_alert = true;
-			flow_send_report("level 2 continuous vital signs alert");
-		}
-	}
-	else
-	{
-		abnormal_tracking = false;
-		mr60bha2_abnormal = false;
-		mr60bha2_level2_alert = false;
-		mr60bha2_abnormal_since = 0U;
-	}
-
 }
 
 static void flow_process_inference_result(const ei_impulse_result_t *result)
@@ -265,7 +180,7 @@ int ei_main(void)
 
 		while(1)
 		{
-			flow_process_mr60bha2();
+			mr60bha2_process();
 			dw1000_process();
 
 			if(g_hm01b0.frame_ready)
@@ -303,6 +218,7 @@ int ei_main(void)
 				}
 
 				flow_process_inference_result(&result);
+				mr60bha2_process();
 				
 				printf("INF_S");   // inference results start header 
 				ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",

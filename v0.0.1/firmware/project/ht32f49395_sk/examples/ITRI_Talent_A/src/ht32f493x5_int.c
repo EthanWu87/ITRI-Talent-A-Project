@@ -220,22 +220,6 @@ void EXINT2_IRQHandler(void)
 }
 
 /**
-  * @brief  HREF interrupt
-  *         PA4 / EXINT4 / rising edge
-  *
-  *         Does nothing, because HM01B0 gated PCLK is enabled.
-  * @param  none
-  * @retval none
-  */
-void EXINT4_IRQHandler(void)
-{
-  if(exint_interrupt_flag_get(HM01B0_HREF_EXINT_LINE) != RESET)
-  {
-		exint_flag_clear(HM01B0_HREF_EXINT_LINE);
-  }
-}
-
-/**
   * @brief  DMA1 Channel2 full-data-transfer interrupt
   * @param  none
   * @retval none
