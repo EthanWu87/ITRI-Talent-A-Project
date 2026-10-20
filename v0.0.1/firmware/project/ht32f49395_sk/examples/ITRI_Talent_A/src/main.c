@@ -50,7 +50,7 @@ int main(void)
 	mr60bha2_init();
 	dw1000_init();
 	
-	/* Beep initialization */
+	/* Buzzer initialization */
 	gpio_init_type gpio_init_struct;
 
   crm_periph_clock_enable(CRM_GPIOB_PERIPH_CLOCK, TRUE);

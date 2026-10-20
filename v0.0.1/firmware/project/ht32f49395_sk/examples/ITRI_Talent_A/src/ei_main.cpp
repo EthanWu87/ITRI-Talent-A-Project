@@ -12,6 +12,8 @@
 #include "dw1000.h"
 
 #include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 #define EI_TARGET_WIDTH  96
 #define EI_TARGET_HEIGHT 96
@@ -27,6 +29,117 @@ extern uint8_t hm01b0_frame_buffer[HM01B0_IMAGE_SIZE_BYTES];
 
 static uint8_t ei_img_crop_buffer[EI_BUFFER_SIZE];   // crop img form 160*120 to 96*96 (center crop) 
 
+// BEGIN APPLICATION NETWORK PROTOCOL
+#define WIFI_CMD_MAX 120U
+#define FLOW_FALL_IMAGE_BYTES 9216U
+static char command[WIFI_CMD_MAX];
+static uint16_t command_n = 0;
+static uint8_t command_overflow;
+static char pending_command[WIFI_CMD_MAX];
+static uint8_t command_ready = 0;
+static void flow_wifi_command_byte(uint8_t b)
+{
+  if (b == '\r') return;
+  if (b == '\n')
+  {
+    if (command_n && !command_ready && !command_overflow)
+    {
+      command[command_n] = 0;
+      strcpy(pending_command, command);
+      command_ready = 1;
+    }
+    command_n = 0;
+    command_overflow = 0;
+    return;
+  }
+  if (command_overflow) return;
+  if (command_n < WIFI_CMD_MAX -1U) command[command_n++] = (char) b;
+  else
+  {
+    command_n = 0;
+    command_overflow = 1U;
+  }
+}
+
+static uint8_t flow_wifi_queue_fall_event(uint8_t level,
+                              uint8_t vitals_valid, float heart_rate, float breath_rate,
+                              const uint8_t *image, uint32_t image_size)
+{
+  char header[112], rates[64], footer[20];
+  int header_len, footer_len, rates_len;
+  BMC81M001_DataSpan parts[3];
+  if(image == NULL || image_size != FLOW_FALL_IMAGE_BYTES ||
+     (level != 1U && level != 2U))
+    return 0U;
+  if(vitals_valid && isfinite(heart_rate) && isfinite(breath_rate) &&
+     heart_rate > 0.0f && breath_rate > 0.0f)
+    rates_len = snprintf(rates, sizeof(rates), "%.2f,%.2f", (double)heart_rate, (double)breath_rate);
+  else
+    rates_len = snprintf(rates, sizeof(rates), "N/A,N/A");
+  if(rates_len < 0 || rates_len >= (int)sizeof(rates))
+    return 0U;
+  header_len = snprintf(header, sizeof(header), "Node_%c_S,L%u,%s,",
+                        FLOW_NODE_ID, (unsigned)level, rates);
+  footer_len = snprintf(footer, sizeof(footer), ",Node_%c_E\r\n", FLOW_NODE_ID);
+  if(header_len < 0 || header_len >= (int)sizeof(header) ||
+     footer_len < 0 || footer_len >= (int)sizeof(footer) ||
+     (uint32_t)(header_len + footer_len) + image_size > BMC81M001_PACKET_MAX)
+    return 0U;
+  parts[0].data = (const uint8_t *)header; parts[0].length = (uint16_t)header_len;
+  parts[1].data = image; parts[1].length = (uint16_t)image_size;
+  parts[2].data = (const uint8_t *)footer; parts[2].length = (uint16_t)footer_len;
+  return BMC81M001_QueuePacket(parts, 3U, level);
+}
+
+uint8_t flow_wifi_send_control(const char *kind, unsigned seq, const char *value)
+{
+  char message[BMC81M001_CONTROL_MAX];
+  int length = snprintf(message, sizeof(message), "NODE_%c,%s,%u,%s\n",
+                        FLOW_NODE_ID, kind, seq, value);
+  if(length <= 0 || length >= (int)sizeof(message)) return 0U;
+  return BMC81M001_QueueData((const uint8_t *)message, (uint16_t)length);
+}
+
+static void flow_wifi_link_changed(uint8_t connected)
+{
+  command_ready = 0U;
+  command_n = 0U;
+  command_overflow = 0U;
+  if(connected) flow_wifi_send_control("HELLO", 0U, "ONLINE");
+  else dw1000_on_disconnect();
+}
+
+static void flow_wifi_packet_sent(uint32_t token)
+{
+  printf("[FALL TX] level=L%lu sent\r\n", (unsigned long)token);
+}
+
+static void flow_wifi_init(void)
+{
+  static const BMC81M001_TcpCallbacks callbacks = {
+    flow_wifi_command_byte, flow_wifi_link_changed, flow_wifi_packet_sent
+  };
+  command_ready = 0U;
+  command_n = 0U;
+  command_overflow = 0U;
+  BMC81M001_TcpInit(&callbacks);
+}
+
+static void flow_wifi_process(void)
+{
+  BMC81M001_Process();
+  if(!BMC81M001_IsConnected()) return;
+  /* Reserve capacity for all replies from one PC command. */
+  if(command_ready && !dw1000_is_busy() && BMC81M001_ControlSlotsFree() >= 4U)
+  {
+    char local[WIFI_CMD_MAX];
+    strcpy(local, pending_command);
+    command_ready = 0U;
+    dw1000_execute_command(local);
+  }
+}
+// END APPLICATION NETWORK PROTOCOL
+
 // Radar vital signs are reference-only; alarms come from image fall detection.
 static volatile bool hm01b0_fall_detected;
 static volatile bool hm01b0_level2_alert;
@@ -39,26 +152,38 @@ static void flow_send_report(const char *message)
 	printf("REPORT: %s\r\n", message);
 }
 
-static void flow_send_vital_signs(void)
+static void flow_send_fall_event(uint8_t level)
 {
     MR60BHA2_Vitals_t vitals;
     mr60bha2_get_vitals(&vitals);
-    const char *status = "invalid";
-    if(vitals.status == MR60BHA2_VITAL_ABSENT) status = "absent";
-    else if(vitals.status == MR60BHA2_VITAL_MULTIPLE) status = "multiple";
-    else if(vitals.status == MR60BHA2_VITAL_REFERENCE) status = "reference";
+    uint8_t accepted = flow_wifi_queue_fall_event(level,
+        vitals.status == MR60BHA2_VITAL_REFERENCE, vitals.heart_rate, vitals.breath_rate,
+        ei_img_crop_buffer, EI_BUFFER_SIZE);
+    printf("[FALL EVENT] level=L%u %s\r\n",
+        (unsigned)level,
+        accepted ? "queued" : "dropped: queue full or invalid packet");
+}
 
-    ei_printf("VITALS: heart=");
-    if(vitals.status == MR60BHA2_VITAL_REFERENCE)
-        ei_printf_float(vitals.heart_rate);
-    else
-        ei_printf("N/A");
-    ei_printf(" breath=");
-    if(vitals.status == MR60BHA2_VITAL_REFERENCE)
-        ei_printf_float(vitals.breath_rate);
-    else
-        ei_printf("N/A");
-    ei_printf(" status=%s\r\n", status);
+static void flow_send_vital_signs(void)
+{
+	MR60BHA2_Vitals_t vitals;
+	mr60bha2_get_vitals(&vitals);
+	const char *status = "invalid";
+	if(vitals.status == MR60BHA2_VITAL_ABSENT) status = "absent";
+	else if(vitals.status == MR60BHA2_VITAL_MULTIPLE) status = "multiple";
+	else if(vitals.status == MR60BHA2_VITAL_REFERENCE) status = "reference";
+
+	ei_printf("VITALS: heart=");
+	if(vitals.status == MR60BHA2_VITAL_REFERENCE)
+		ei_printf_float(vitals.heart_rate);
+	else
+		ei_printf("N/A");
+	ei_printf(" breath=");
+	if(vitals.status == MR60BHA2_VITAL_REFERENCE)
+		ei_printf_float(vitals.breath_rate);
+	else
+		ei_printf("N/A");
+	ei_printf(" status=%s\r\n", status);
 }
 
 extern "C" void flow_buzzer_tick(uint32_t now)
@@ -132,11 +257,13 @@ static void flow_process_inference_result(const ei_impulse_result_t *result)
 		{
 			hm01b0_fall_detected = true;
 			flow_send_report("level 1 fall image alert");
+			flow_send_fall_event(1U);
 		}
 		if((now - hm01b0_fall_since) >= HM01B0_FALL_HOLD_MS && !hm01b0_level2_alert)
 		{
 			hm01b0_level2_alert = true;
 			flow_send_report("level 2 fall image alert");
+			flow_send_fall_event(2U);
 		}
 	}
 	else
@@ -164,6 +291,7 @@ int raw_feature_get_data(size_t offset, size_t length, float *out_ptr)
 
 int ei_main(void)
 {
+	flow_wifi_init();
 	ei_impulse_result_t result = {0};
 
 	while(1)
@@ -181,6 +309,7 @@ int ei_main(void)
 		while(1)
 		{
 			mr60bha2_process();
+			flow_wifi_process();
 			dw1000_process();
 
 			if(g_hm01b0.frame_ready)
@@ -217,8 +346,8 @@ int ei_main(void)
 					return 1;
 				}
 
-				flow_process_inference_result(&result);
 				mr60bha2_process();
+				flow_process_inference_result(&result);
 				
 				printf("INF_S");   // inference results start header 
 				ei_printf("Predictions (DSP: %d ms., Classification: %d ms., Anomaly: %d ms.): \n",
@@ -248,6 +377,7 @@ int ei_main(void)
 				printf("INF_E\r\n");
 
 				/* Service UWB/TCP after completing the image/inference packet. */
+				flow_wifi_process();
 				dw1000_process();
 			}
 		}

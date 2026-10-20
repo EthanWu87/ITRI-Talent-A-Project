@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 
 #define _DW1000_H_
 #define _BMC81M001_H
@@ -37,12 +38,14 @@
 #define DW1000_BAUD_RATE 115200U
 #define DW1000_RX_BUFFER_SIZE 2048U
 #define BMC81M001_RX_BUFFER_SIZE 2048U
-#define DW1000_RECONNECT_MS 3000U
-#define DW1000_NODE_ID 'A'
-#define DW1000_WIFI_SSID "test"
-#define DW1000_WIFI_PASSWORD "test"
-#define DW1000_SERVER_IP "127.0.0.1"
-#define DW1000_SERVER_PORT 5000U
+#define BMC81M001_WIFI_RECONNECT_MS 3000U
+#define FLOW_FALL_IMAGE_BYTES 9216U
+#define FLOW_FALL_QUEUE_COUNT 2U
+#define FLOW_NODE_ID 'A'
+#define BMC81M001_WIFI_SSID "test"
+#define BMC81M001_WIFI_PASSWORD "test"
+#define BMC81M001_SERVER_IP "127.0.0.1"
+#define BMC81M001_SERVER_PORT 5000U
 #define __DMB() ((void)0)
 
 typedef struct { int id, tx_enabled, stalled; } usart_type;
@@ -53,7 +56,7 @@ static usart_type mock_wifi = {0}, mock_uwb = {1};
 #define BMC81M001_USART_PORT (&mock_wifi)
 #define DW1000_USART_PORT (&mock_uwb)
 static uint32_t mock_now;
-static char transmitted[2][16384];
+static char transmitted[2][65536];
 static unsigned transmitted_n[2];
 static uint8_t mock_rx[4096];
 static unsigned mock_rx_w, mock_rx_r;
@@ -95,7 +98,9 @@ static bool BMC81M001_readByte(uint8_t *data)
 }
 static int test_printf(const char *format, ...) { (void)format; return 0; }
 #define printf test_printf
+#include "../mdk_v5/dw1000_verification/bmc_tcp_api_under_test.inc"
 #include "../src/dw1000.c"
+#include "../mdk_v5/dw1000_verification/wifi_transport_under_test.inc"
 #undef printf
 
 #define CHECK(expr) do { if(!(expr)) { test_failure = __LINE__; return 1; } } while(0)
@@ -103,13 +108,13 @@ static int test_printf(const char *format, ...) { (void)format; return 0; }
 static void pump(void)
 {
   unsigned i;
-  for(i=0; i<TX_MAX && (mock_wifi.tx_enabled || mock_uwb.tx_enabled); i++)
+  for(i=0; i<WIFI_CHUNK_SIZE && (mock_wifi.tx_enabled || mock_uwb.tx_enabled); i++)
   {
-    dw1000_tx_irq_handler(&mock_wifi);
+    BMC81M001_TxIrqHandler();
     dw1000_tx_irq_handler(&mock_uwb);
   }
 }
-static void service(void) { dw1000_process(); pump(); }
+static void service(void) { flow_wifi_process(); dw1000_process(); pump(); }
 static void tick(uint32_t ms) { mock_now += ms; service(); }
 static void wifi_input(const char *text)
 {
@@ -129,6 +134,7 @@ static void fixture(void)
   memset(transmitted_n, 0, sizeof(transmitted_n));
   mock_wifi.stalled = mock_uwb.stalled = 0;
   dw1000_init();
+  flow_wifi_init();
 }
 static void connect_wifi(void)
 {
@@ -264,8 +270,8 @@ static int test_queue_and_median(void)
   dw1000_cal_reset(&cal_ab);
   for(i=0;i<7;i++) dw1000_cal_add(&cal_ab,values[i]);
   CHECK(cal_ab.pending && cal_ab.median == 3.0f);
-  for(i=0;i<EVENT_COUNT;i++) CHECK(dw1000_send_event("PONG",i,"OK"));
-  CHECK(!dw1000_send_event("PONG",99,"FULL"));
+  for(i=0;i<EVENT_COUNT;i++) CHECK(flow_wifi_send_control("PONG",i,"OK"));
+  CHECK(!flow_wifi_send_control("PONG",99,"FULL"));
   dw1000_cal_emit(&cal_ab,"AB"); CHECK(cal_ab.pending && !cal_ab.sent);
   event_count--;
   dw1000_cal_emit(&cal_ab,"AB"); CHECK(!cal_ab.pending && cal_ab.sent);
@@ -358,12 +364,144 @@ static int test_link_loss_after_ap_join(void)
   return 0;
 }
 
+
+static uint8_t image_fixture[FLOW_FALL_IMAGE_BYTES];
+static uint8_t tcp_stream[40000];
+static unsigned tcp_stream_n;
+
+static void capture_chunk(void)
+{
+  unsigned start, length;
+  if(wifi_state == WIFI_ONLINE) service();
+  start = transmitted_n[0];
+  wifi_input("> ");
+  length = transmitted_n[0] - start;
+  if(tcp_stream_n + length <= sizeof(tcp_stream))
+  {
+    memcpy(tcp_stream + tcp_stream_n, transmitted[0] + start, length);
+    tcp_stream_n += length;
+  }
+  wifi_input("\r\nSEND OK\r\n");
+}
+
+static int test_fall_binary_and_no_interleave(void)
+{
+  unsigned i, image_offset, length, steps;
+  const char *header = "Node_A_S,L1,76.40,19.80,";
+  const char *footer = ",Node_A_E\r\n";
+  fixture(); connect_wifi(); send_one_event();
+  for(i=0;i<sizeof(image_fixture);i++) image_fixture[i]=(uint8_t)i;
+  memcpy(image_fixture + 100, "\0,Node_A_E\r\nNode_A_S,", 21);
+  CHECK(flow_wifi_queue_fall_event(1,1,76.4f,19.8f,image_fixture,sizeof(image_fixture)));
+  image_offset = (unsigned)strlen(header);
+  length = image_offset + sizeof(image_fixture) + (unsigned)strlen(footer);
+  CHECK(packets[packet_head].length == length);
+  CHECK(memcmp(packets[packet_head].data,header,image_offset) == 0);
+  // The live inference buffer can change immediately after enqueue.
+  memset(image_fixture,0xA5,sizeof(image_fixture));
+  tcp_stream_n=0;
+  capture_chunk();
+  CHECK(send_kind == SEND_PACKET && send_offset == WIFI_CHUNK_SIZE);
+  pc_command("PING,42\n");
+  CHECK(event_count == 1);
+  for(steps=0;packet_count && steps<10;steps++) capture_chunk();
+  CHECK(packet_count == 0 && tcp_stream_n == length && event_count == 1);
+  CHECK(memcmp(tcp_stream,header,image_offset) == 0);
+  CHECK(memcmp(tcp_stream+image_offset+sizeof(image_fixture),footer,strlen(footer)) == 0);
+  for(i=0;i<sizeof(image_fixture);i++)
+  {
+    if(i>=100 && i<121) continue;
+    CHECK(tcp_stream[image_offset+i] == (uint8_t)i);
+  }
+  CHECK(memcmp(tcp_stream+image_offset+100,"\0,Node_A_E\r\nNode_A_S,",21) == 0);
+  capture_chunk();
+  CHECK(event_count == 0);
+  CHECK(memcmp(tcp_stream+length,"NODE_A,PONG,42,OK\n",18) == 0);
+  return 0;
+}
+
+static int test_fall_offline_queue_and_validation(void)
+{
+  unsigned steps, first_length;
+  fixture(); memset(image_fixture,0,sizeof(image_fixture));
+  CHECK(flow_wifi_queue_fall_event(1,0,80,20,image_fixture,sizeof(image_fixture)));
+  first_length = packets[packet_head].length;
+  CHECK(flow_wifi_queue_fall_event(2,1,NAN,20,image_fixture,sizeof(image_fixture)));
+  CHECK(packet_count == 2 && !wifi_connected);
+  CHECK(!flow_wifi_queue_fall_event(1,0,0,0,image_fixture,sizeof(image_fixture)));
+  CHECK(memcmp(packets[packet_head].data,"Node_A_S,L1,N/A,N/A,",strlen("Node_A_S,L1,N/A,N/A,")) == 0);
+  connect_wifi(); send_one_event(); tcp_stream_n=0;
+  for(steps=0;packet_count && steps<20;steps++) capture_chunk();
+  CHECK(packet_count == 0);
+  CHECK(memcmp(tcp_stream,"Node_A_S,L1,N/A,N/A,",strlen("Node_A_S,L1,N/A,N/A,")) == 0);
+  CHECK(memcmp(tcp_stream+first_length,"Node_A_S,L2,N/A,N/A,",strlen("Node_A_S,L2,N/A,N/A,")) == 0);
+  CHECK(!flow_wifi_queue_fall_event(0,1,80,20,image_fixture,sizeof(image_fixture)));
+  CHECK(!flow_wifi_queue_fall_event(1,1,80,20,NULL,sizeof(image_fixture)));
+  CHECK(!flow_wifi_queue_fall_event(1,1,80,20,image_fixture,sizeof(image_fixture)-1));
+  return 0;
+}
+
+static int test_fall_reconnect_restart(void)
+{
+  unsigned length, steps;
+  fixture(); connect_wifi(); send_one_event();
+  memset(image_fixture,0x35,sizeof(image_fixture));
+  CHECK(flow_wifi_queue_fall_event(2,0,0,0,image_fixture,sizeof(image_fixture)));
+  length = packets[packet_head].length;
+  tcp_stream_n=0; capture_chunk();
+  CHECK(send_offset == WIFI_CHUNK_SIZE);
+  service(); wifi_input("> "); // Body transmitted, but SEND OK never arrives.
+  service(); tick(5000);
+  CHECK(!wifi_connected && packet_count == 1 && wifi_close_required && send_offset == 0);
+  tick(3000);
+  CHECK(wifi_operation == WIFI_CLOSE);
+  wifi_input("\r\nOK\r\n");
+  CHECK(!wifi_close_required && wifi_state == WIFI_START);
+  connect_wifi(); send_one_event();
+  tcp_stream_n=0; // New TCP connection: receiver discards previous partial record.
+  for(steps=0;packet_count && steps<10;steps++) capture_chunk();
+  CHECK(!packet_count && tcp_stream_n == length);
+  CHECK(memcmp(tcp_stream,"Node_A_S,L2,N/A,N/A,",strlen("Node_A_S,L2,N/A,N/A,")) == 0);
+  CHECK(memcmp(tcp_stream+length-strlen(",Node_A_E\r\n"),",Node_A_E\r\n",strlen(",Node_A_E\r\n")) == 0);
+  return 0;
+}
+
+static int test_generic_binary_api(void)
+{
+  uint8_t data[] = {0x00, 0x2c, 0x0a, 0xff, 0x00};
+  BMC81M001_DataSpan parts[2] = {{data, 2U}, {data + 2U, 3U}};
+  fixture();
+  CHECK(!BMC81M001_QueueData(data, sizeof(data)));
+  CHECK(!BMC81M001_QueuePacket(NULL, 1U, 99U));
+  CHECK(!BMC81M001_QueuePacket(parts, 0U, 99U));
+  parts[1].length = BMC81M001_PACKET_MAX;
+  CHECK(!BMC81M001_QueuePacket(parts, 2U, 99U));
+  CHECK(packet_count == 0U);
+  parts[1].length = 3U;
+  CHECK(BMC81M001_QueuePacket(parts, 2U, 99U));
+  CHECK(packets[packet_head].token == 99U);
+  connect_wifi(); send_one_event();
+  tcp_stream_n = 0U; capture_chunk();
+  CHECK(tcp_stream_n == sizeof(data) && memcmp(tcp_stream, data, sizeof(data)) == 0);
+  CHECK(packet_count == 0U);
+  CHECK(!BMC81M001_QueueData(NULL, 1U));
+  CHECK(!BMC81M001_QueueData(data, 0U));
+  CHECK(!BMC81M001_QueueData(data, BMC81M001_CONTROL_MAX + 1U));
+  CHECK(BMC81M001_QueueData(data, sizeof(data)));
+  tcp_stream_n = 0U; capture_chunk();
+  CHECK(tcp_stream_n == sizeof(data) && memcmp(tcp_stream, data, sizeof(data)) == 0);
+  CHECK(event_count == 0U);
+  return 0;
+}
+
 int main(void)
 {
   int (*tests[])(void) = {test_no_response,test_ap_timeout,test_connect_and_ping,
     test_role_success,test_role_timeout,test_disconnect,test_queue_and_median,
     test_stalled_tx_and_wrap,test_tcp_timeout_and_payload,test_ap_rejoin_notifications,
-    test_setup_disconnect_and_failure,test_link_loss_after_ap_join};
+    test_setup_disconnect_and_failure,test_link_loss_after_ap_join,
+    test_fall_binary_and_no_interleave,test_fall_offline_queue_and_validation,
+    test_fall_reconnect_restart,test_generic_binary_api};
   for(test_number=0;test_number<sizeof(tests)/sizeof(tests[0]);test_number++)
   {
     if(tests[test_number]()) return 1;

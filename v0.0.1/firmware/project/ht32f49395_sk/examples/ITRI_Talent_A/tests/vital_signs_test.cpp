@@ -10,11 +10,28 @@ static uint32_t fake_now;
 static uint32_t SysTick_GetTick(void) { return fake_now; }
 #include "mr60bha2_under_test.inc"
 
+#define EI_BUFFER_SIZE 9216U
+static uint8_t ei_img_crop_buffer[EI_BUFFER_SIZE];
+static unsigned fall_queue_calls;
+static struct { uint8_t level, valid, first_pixel; float heart, breath; } queued_falls[8];
+static uint8_t flow_wifi_queue_fall_event(uint8_t level, uint8_t valid,
+                                      float heart, float breath, const uint8_t *image, uint32_t size)
+{
+    if(fall_queue_calls >= 8 || size != EI_BUFFER_SIZE) return 0;
+    queued_falls[fall_queue_calls].level = level;
+    queued_falls[fall_queue_calls].valid = valid;
+    queued_falls[fall_queue_calls].heart = heart;
+    queued_falls[fall_queue_calls].breath = breath;
+    queued_falls[fall_queue_calls].first_pixel = image[0];
+    ++fall_queue_calls;
+    return 1;
+}
+
 static unsigned reports;
 static bool buzzer;
 static char telemetry[256];
 static size_t telemetry_used;
-static int test_printf(const char *, ...) { ++reports; return 0; }
+static int test_printf(const char *fmt, ...) { if(strncmp(fmt, "REPORT:", 7) == 0) ++reports; return 0; }
 static void ei_printf(const char *fmt, ...)
 {
     va_list args; va_start(args, fmt);
@@ -30,13 +47,13 @@ static void ei_printf_float(float value) { ei_printf("%.2f", (double)value); }
 static void gpio_bits_reset(int, int) { buzzer = false; }
 static void gpio_bits_set(int, int) { buzzer = true; }
 typedef struct { const char *label; float value; } box_t;
-typedef struct { uint32_t bounding_boxes_count; box_t bounding_boxes[1]; } ei_impulse_result_t;
+typedef struct { uint32_t bounding_boxes_count; box_t bounding_boxes[2]; } ei_impulse_result_t;
 #include "vital_signs_flow_under_test.inc"
 #undef printf
 
 volatile unsigned test_number, test_failure;
 #define CHECK(c) do { if(!(c)) { test_failure = __LINE__; return 1; } } while(0)
-static void reset(void) { fake_now = 0; mr60bha2_init(); reports = 0; }
+static void reset(void) { fake_now = 0; mr60bha2_init(); reports = 0; fall_queue_calls = 0; }
 static void u32(uint8_t *p, uint32_t n)
 {
     for(unsigned i = 0; i < 4; ++i) p[i] = (uint8_t)(n >> (8U * i));
@@ -254,6 +271,45 @@ int main(void)
     flow_buzzer_tick(fake_now); CHECK(buzzer);
     fall.bounding_boxes_count = 0; flow_process_inference_result(&fall);
     flow_buzzer_tick(fake_now); CHECK(!buzzer);
+    ++test_number;
+
+    // Each level is a distinct event, once per transition, with trigger-frame data.
+    ready();
+    fall.bounding_boxes_count = 1;
+    fake_now = 3000; flow_process_inference_result(&fall);
+    memset(ei_img_crop_buffer, 0x11, sizeof(ei_img_crop_buffer));
+    for(unsigned i = 4; i <= 6; ++i) { sample(i * 1000U); flow_process_inference_result(&fall); }
+    CHECK(fall_queue_calls == 1 && queued_falls[0].level == 1);
+    CHECK(queued_falls[0].valid && queued_falls[0].heart == 80 && queued_falls[0].breath == 20);
+    CHECK(queued_falls[0].first_pixel == 0x11);
+    flow_process_inference_result(&fall); CHECK(fall_queue_calls == 1);
+    memset(ei_img_crop_buffer, 0x22, sizeof(ei_img_crop_buffer));
+    for(unsigned i = 7; i <= 13; ++i) { sample(i * 1000U); flow_process_inference_result(&fall); }
+    CHECK(fall_queue_calls == 2 && queued_falls[1].level == 2);
+    CHECK(queued_falls[1].first_pixel == 0x22 && queued_falls[0].first_pixel == 0x11);
+    sample(14000); flow_process_inference_result(&fall); CHECK(fall_queue_calls == 2);
+    fall.bounding_boxes_count = 0; flow_process_inference_result(&fall);
+    fall.bounding_boxes_count = 1;
+    fake_now = 15000; flow_process_inference_result(&fall);
+    fake_now = 18000; flow_process_inference_result(&fall);
+    CHECK(fall_queue_calls == 3 && queued_falls[2].level == 1);
+    CHECK(!queued_falls[2].valid);
+    fake_now = 25000; flow_process_inference_result(&fall);
+    CHECK(fall_queue_calls == 4 && queued_falls[3].level == 2);
+    ++test_number;
+    // Scene-level state: a second fallen person during L1 does not restart it.
+    fall.bounding_boxes_count = 0; flow_process_inference_result(&fall);
+    reset();
+    fall.bounding_boxes_count = 1;
+    fake_now = 100; flow_process_inference_result(&fall);
+    fake_now = 100 + HM01B0_INITIAL_FALL_MS; flow_process_inference_result(&fall);
+    CHECK(fall_queue_calls == 1 && queued_falls[0].level == 1);
+    fall.bounding_boxes[1] = {"fall", 0.99f};
+    fall.bounding_boxes_count = 2;
+    fake_now += 100; flow_process_inference_result(&fall);
+    CHECK(fall_queue_calls == 1);
+    fake_now = 100 + HM01B0_FALL_HOLD_MS; flow_process_inference_result(&fall);
+    CHECK(fall_queue_calls == 2 && queued_falls[1].level == 2);
     ++test_number;
     return 0;
 }

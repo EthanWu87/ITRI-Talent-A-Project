@@ -39,6 +39,7 @@
 #include "i2c_application.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 /* Settings ------------------------------------------------------------------------------------------------*/
 /* Exported typedef ----------------------------------------------------------------------------------------*/
@@ -70,6 +71,53 @@ typedef enum {
 #define BMC81M001_USART_IRQn             UART4_IRQn
 #define BMC81M001_RX_BUFFER_SIZE         2048U
 
+// BEGIN BMC TCP API
+#ifndef BMC81M001_WIFI_SSID
+#define BMC81M001_WIFI_SSID "Ying"
+#endif
+#ifndef BMC81M001_WIFI_PASSWORD
+#define BMC81M001_WIFI_PASSWORD "aaa12346"
+#endif
+#ifndef BMC81M001_SERVER_IP
+#define BMC81M001_SERVER_IP "172.20.10.4"
+#endif
+#ifndef BMC81M001_SERVER_PORT
+#define BMC81M001_SERVER_PORT 5000U
+#endif
+
+
+#define BMC81M001_WIFI_RECONNECT_MS 3000U
+
+#define BMC81M001_PACKET_MAX 9344U
+#define BMC81M001_PACKET_COUNT 2U
+#define BMC81M001_CONTROL_MAX 200U
+#define BMC81M001_CONTROL_COUNT 8U
+
+typedef struct {
+  const uint8_t *data;
+  uint16_t length;
+} BMC81M001_DataSpan;
+typedef struct {
+  void (*receive_byte)(uint8_t data);
+  void (*link_changed)(uint8_t connected);
+  void (*packet_sent)(uint32_t token);
+} BMC81M001_TcpCallbacks;
+
+/* Call after UART init. Callbacks run in main context and must not block.
+ * Packet-sent means module SEND OK, not PC application acknowledgement.
+ * Do not mix this service with the legacy blocking AT/TCP/MQTT API. */
+void BMC81M001_TcpInit(const BMC81M001_TcpCallbacks *callbacks);
+void BMC81M001_Process(void);
+void BMC81M001_TxIrqHandler(void);
+uint8_t BMC81M001_IsConnected(void);
+uint8_t BMC81M001_ControlSlotsFree(void);
+/* Short records: copy now, require connection, discard on disconnect. */
+uint8_t BMC81M001_QueueData(const uint8_t *data, uint16_t length);
+/* Copy spans into ONE atomic record; survive reconnect, not reset.
+ * Return 0 for invalid/full; no partial enqueue. token is opaque to driver. */
+uint8_t BMC81M001_QueuePacket(const BMC81M001_DataSpan *parts, uint8_t count, uint32_t token);
+// END BMC TCP API
+
 #define RES_MAX_LENGTH 200
 /* Exported variables --------------------------------------------------------------------------------------*/
 /* Exported functions --------------------------------------------------------------------------------------*/
@@ -89,7 +137,7 @@ bool BMC81M001_reset(void);
 void BMC81M001_writeBytes(char wbuf[]);
 void BMC81M001_readBytes(uint8_t rbuf[],int timeout, uint8_t reTry);
 void BMC81M001_RxIrqHandler(void);
-/* Single-consumer raw RX API; do not mix with AT/readDataTcp during DW1000 service. */
+/* Single-consumer raw RX API; do not mix with AT/readDataTcp during nonblocking TCP service. */
 bool BMC81M001_readByte(uint8_t *data);
 int BMC81M001_sendATCommand(char StringstrCmd[],uint8_t reTry);
 void BMC81M001_arrayAdd(char array1[],char array2[]);

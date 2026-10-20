@@ -184,7 +184,7 @@ void UART8_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
   BMC81M001_RxIrqHandler();
-  dw1000_tx_irq_handler(BMC81M001_USART_PORT);
+  BMC81M001_TxIrqHandler();
 }
 
 /**

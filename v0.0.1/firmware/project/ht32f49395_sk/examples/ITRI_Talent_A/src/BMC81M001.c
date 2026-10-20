@@ -28,6 +28,8 @@
 /* Includes ------------------------------------------------------------------------------------------------*/
 #include "BMC81M001.h"
 #include <stdio.h>
+#include <stdlib.h>
+#include "ht32f493x5_int.h"
 
 /* Settings ------------------------------------------------------------------------------------------------*/
 /* Private types -------------------------------------------------------------------------------------------*/
@@ -189,7 +191,7 @@ bool BMC81M001_writeDataTcp(int Dlength,char Dbuffer[])
   if(BMC81M001_sendATCommand(cmd,4) == BMC81M001_SEND_SUCCESS ) ;
   else 
   {
-  return false;
+    return false;
   } 
   _BMC81M001_delay(100);
   if(BMC81M001_sendATCommand(Dbuffer,3) == BMC81M001_SEND_SUCCESS )  
@@ -722,3 +724,547 @@ int BMC81M001_arrayFind(char array1[],char array2)
 	}
 	return position;
 }
+
+// BEGIN BMC NONBLOCKING TCP
+#define WIFI_CHUNK_SIZE 2048U
+#define WIFI_TX_MAX 256U
+#define EVENT_MAX BMC81M001_CONTROL_MAX
+#define EVENT_COUNT BMC81M001_CONTROL_COUNT
+#define WIFI_TX_TIMEOUT_MS 1000U
+typedef struct
+{
+  uint8_t data[WIFI_CHUNK_SIZE];
+  volatile uint16_t length;
+  volatile uint16_t position;
+} bmc_tcp_tx_t;
+
+static bmc_tcp_tx_t wifi_tx;
+
+/* Main context owns the buffer until it is published to the TX interrupt. */
+static uint8_t bmc_tcp_tx_bytes(usart_type *port, bmc_tcp_tx_t *tx,
+                               const uint8_t *data, size_t length)
+{
+  if(data == NULL || length == 0U || length > sizeof(tx->data) || tx->position < tx->length)
+    return 0U;
+  usart_interrupt_enable(port, USART_TDBE_INT, FALSE);
+  memcpy(tx->data, data, length);
+  tx->position = 0U;
+  tx->length = (uint16_t)length;
+  __DMB();
+  usart_interrupt_enable(port, USART_TDBE_INT, TRUE);
+  return 1U;
+}
+
+void BMC81M001_TxIrqHandler(void)
+{
+  usart_type *port = BMC81M001_USART_PORT;
+  bmc_tcp_tx_t *tx = &wifi_tx;
+  if(usart_interrupt_flag_get(port, USART_TDBE_FLAG) == RESET)
+  {
+    return;
+  }
+  if(tx->position < tx->length)
+  {
+    usart_data_transmit(port, tx->data[tx->position++]);
+  }
+  if(tx->position >= tx->length)
+  {
+    usart_interrupt_enable(port, USART_TDBE_INT, FALSE);
+  }
+}
+
+static uint8_t bmc_tcp_tx_done(usart_type *port, const bmc_tcp_tx_t *tx)
+{
+  return tx->position == tx->length && usart_flag_get(port, USART_TDC_FLAG) != RESET;
+}
+
+static void bmc_tcp_tx_cancel(usart_type *port, bmc_tcp_tx_t *tx)
+{
+  usart_interrupt_enable(port, USART_TDBE_INT, FALSE);
+  tx->position = 0U;
+  tx->length = 0U;
+}
+
+/* Wi-Fi parser: ESP8266 +IPD,<length>:<data>. Handles fragmentation.
+ * Only AT command replies are recorded outside +IPD payload.
+ */
+static char wifi_at[512];
+static uint16_t at_n = 0;
+static char ipd_head[30];
+static uint8_t ipd_hn = 0, ipd_mode = 0;
+/* 0 normal, 1 header, 2 payload */
+static uint16_t ipd_remaining = 0;
+static uint8_t ipd_match;
+static uint8_t wifi_connected;
+static BMC81M001_TcpCallbacks tcp_callbacks;
+static void bmc_tcp_at_byte(char b)
+{
+  if (at_n >= sizeof(wifi_at) -1U)
+  {
+    memmove(wifi_at, wifi_at + 128U, sizeof(wifi_at) -129U);
+    at_n = (uint16_t) (sizeof(wifi_at) -129U);
+  }
+  wifi_at[at_n++] = b;
+  wifi_at[at_n] = '\0';
+}
+
+static void bmc_tcp_byte(uint8_t b)
+{
+  const char * prefix = "+IPD,";
+  if (ipd_mode == 2)
+  {
+    if(tcp_callbacks.receive_byte) tcp_callbacks.receive_byte(b);
+    if (--ipd_remaining == 0U) ipd_mode = 0;
+    return;
+  }
+  if (ipd_mode == 1)
+  {
+    if (b == ':')
+    {
+      unsigned long n;
+      ipd_head[ipd_hn] = 0;
+      /* CIPMUX=0: +IPD,len; optional +IPD,0,len accepted. */
+      {
+        char * p = strrchr(ipd_head, ',');
+        n = strtoul(p ? p + 1 : ipd_head, NULL, 10);
+      }
+      ipd_remaining = (uint16_t) ((n > 4096U) ? 0U : n);
+      ipd_mode = (ipd_remaining > 0U) ? 2U : 0U;
+      ipd_hn = 0;
+      return;
+    }
+    if (ipd_hn < sizeof(ipd_head) -1U && ((b >= '0' && b <= '9') || b == ','))
+    {
+      ipd_head[ipd_hn++] = (char) b;
+      return;
+    }
+    /* Malformed header: discard and recover. */
+    ipd_mode = 0;
+    ipd_hn = 0;
+  }
+  /* Scan normal text for +IPD, while retaining AT responses. */
+  {
+    if (b == (uint8_t) prefix[ipd_match])
+    {
+      ipd_match++;
+      if (ipd_match == 5U)
+      {
+        ipd_mode = 1;
+        ipd_hn = 0;
+        ipd_match = 0;
+        return;
+      }
+    }
+    else ipd_match = (b == '+') ? 1U : 0U;
+  }
+  bmc_tcp_at_byte((char) b);
+}
+
+static void bmc_tcp_poll(void)
+{
+  uint8_t b;
+  uint16_t budget = BMC81M001_RX_BUFFER_SIZE;
+  while(budget-- != 0U && BMC81M001_readByte(&b))
+  {
+    bmc_tcp_byte((uint8_t)b);
+  }
+}
+
+static void bmc_tcp_reset_at_capture(void)
+{
+  at_n = 0;
+  wifi_at[0] = 0;
+}
+
+static uint8_t bmc_tcp_result_line(const char * response, const char * word)
+{
+  const char * p = response;
+  size_t n = strlen(word);
+  while (* p)
+  {
+    const char * start = p;
+    while (* p && * p != '\r' && * p != '\n') p++;
+    if (*p != '\0' && (size_t) (p - start) == n && strncmp(start, word, n) == 0) return 1;
+    while (* p == '\r' || * p == '\n') p++;
+  }
+  return 0;
+}
+
+
+typedef enum
+{
+  WIFI_START, WIFI_TX, WIFI_REPLY, WIFI_ONLINE, WIFI_BACKOFF
+} bmc_tcp_state_t;
+
+typedef enum
+{
+  WIFI_CONNECT, WIFI_SEND_PROMPT, WIFI_SEND_ACK, WIFI_CLOSE
+} bmc_tcp_operation_t;
+
+static bmc_tcp_state_t wifi_state;
+static bmc_tcp_operation_t wifi_operation;
+static uint8_t wifi_step;
+static uint32_t wifi_since, wifi_timeout;
+static uint8_t events[EVENT_COUNT][EVENT_MAX];
+static uint16_t event_lengths[EVENT_COUNT];
+static uint8_t event_head, event_tail, event_count;
+
+
+typedef struct
+{
+  uint8_t data[BMC81M001_PACKET_MAX];
+  uint16_t length;
+  uint32_t token;
+} packet_t;
+static packet_t packets[BMC81M001_PACKET_COUNT];
+static uint8_t packet_head, packet_tail, packet_count;
+typedef enum { SEND_NONE, SEND_CONTROL, SEND_PACKET } send_kind_t;
+static send_kind_t send_kind;
+static uint16_t send_offset, send_chunk;
+static uint8_t wifi_close_required;
+
+uint8_t BMC81M001_QueuePacket(const BMC81M001_DataSpan *parts, uint8_t count, uint32_t token)
+{
+  uint32_t total = 0U;
+  uint8_t i;
+  packet_t *packet;
+  if(parts == NULL || count == 0U || packet_count >= BMC81M001_PACKET_COUNT) return 0U;
+  for(i = 0U; i < count; ++i)
+  {
+    if(parts[i].data == NULL || parts[i].length == 0U) return 0U;
+    total += parts[i].length;
+    if(total > BMC81M001_PACKET_MAX) return 0U;
+  }
+  packet = &packets[packet_tail];
+  total = 0U;
+  for(i = 0U; i < count; ++i)
+  {
+    memcpy(packet->data + total, parts[i].data, parts[i].length);
+    total += parts[i].length;
+  }
+  packet->length = (uint16_t)total;
+  packet->token = token;
+  packet_tail = (uint8_t)((packet_tail + 1U) % BMC81M001_PACKET_COUNT);
+  ++packet_count;
+  return 1U;
+}
+
+static const uint8_t *bmc_tcp_send_data(void)
+{
+  return send_kind == SEND_PACKET ? packets[packet_head].data :
+                                (const uint8_t *)events[event_head];
+}
+
+static uint16_t bmc_tcp_send_length(void)
+{
+  return send_kind == SEND_PACKET ? packets[packet_head].length :
+                                event_lengths[event_head];
+}
+
+
+uint8_t BMC81M001_QueueData(const uint8_t *data, uint16_t length)
+{
+  if(!wifi_connected || event_count >= EVENT_COUNT || data == NULL ||
+     length == 0U || length > EVENT_MAX) return 0U;
+  memcpy(events[event_tail], data, length);
+  event_lengths[event_tail] = length;
+  event_tail = (uint8_t)((event_tail + 1U) % EVENT_COUNT);
+  ++event_count;
+  return 1U;
+}
+
+uint8_t BMC81M001_ControlSlotsFree(void) { return EVENT_COUNT - event_count; }
+
+static void bmc_tcp_disconnect(uint32_t now)
+{
+  bmc_tcp_tx_cancel(BMC81M001_USART_PORT, &wifi_tx);
+  /* A retry must begin on a fresh TCP stream, never inside a partial record. */
+  if(send_kind != SEND_NONE) wifi_close_required = 1U;
+  send_kind = SEND_NONE;
+  send_offset = send_chunk = 0U;
+  wifi_connected = 0U;
+  ipd_mode = ipd_hn = ipd_match = 0U;
+  ipd_remaining = 0U;
+  event_head = event_tail = event_count = 0U;
+  wifi_state = WIFI_BACKOFF;
+  wifi_since = now;
+  bmc_tcp_reset_at_capture();
+  if(tcp_callbacks.link_changed) tcp_callbacks.link_changed(0U);
+}
+
+/* Stage names deliberately omit AP credentials. */
+static const char *bmc_tcp_stage(void)
+{
+  static const char *const stages[] = {"AT", "ATE0", "CWMODE", "CWJAP", "CIPMUX", "CIPSTART"};
+  if(wifi_operation == WIFI_CLOSE) return "CIPCLOSE";
+  if(wifi_operation == WIFI_SEND_PROMPT)
+  {
+    return "CIPSEND prompt";
+  }
+  if(wifi_operation == WIFI_SEND_ACK)
+  {
+    return "CIPSEND acknowledgement";
+  }
+  return wifi_step < 6U ? stages[wifi_step] : "TCP";
+}
+
+static void bmc_tcp_fail(uint32_t now, const char *reason)
+{
+  printf("[WIFI] %s: %s; retry in %lu ms\r\n", bmc_tcp_stage(), reason,
+         (unsigned long)BMC81M001_WIFI_RECONNECT_MS);
+  bmc_tcp_disconnect(now);
+}
+
+static uint8_t bmc_tcp_begin_bytes(const uint8_t *data, size_t length,
+                                      bmc_tcp_operation_t operation,
+                                      uint32_t timeout, uint32_t now)
+{
+  bmc_tcp_reset_at_capture();
+  if(!bmc_tcp_tx_bytes(BMC81M001_USART_PORT, &wifi_tx, data, length))
+  {
+    bmc_tcp_fail(now, "TX unavailable");
+    return 0U;
+  }
+  wifi_operation = operation;
+  wifi_timeout = timeout;
+  wifi_since = now;
+  wifi_state = WIFI_TX;
+  return 1U;
+}
+
+static uint8_t bmc_tcp_begin(const char *text, bmc_tcp_operation_t operation,
+                                uint32_t timeout, uint32_t now)
+{
+  return bmc_tcp_begin_bytes((const uint8_t *)text, strlen(text), operation, timeout, now);
+}
+
+static void bmc_tcp_connect_step(uint32_t now)
+{
+  char cmd[WIFI_TX_MAX];
+  uint32_t timeout = 3000U;
+  int length = 0;
+  switch(wifi_step)
+  {
+    case 0: length = snprintf(cmd, sizeof(cmd), "AT\r\n"); timeout = 2500U; break;
+    case 1: length = snprintf(cmd, sizeof(cmd), "ATE0\r\n"); timeout = 2500U; break;
+    case 2: length = snprintf(cmd, sizeof(cmd), "AT+CWMODE=1\r\n"); break;
+    case 3:
+      length = snprintf(cmd, sizeof(cmd), "AT+CWJAP=\"%s\",\"%s\"\r\n",
+                        BMC81M001_WIFI_SSID, BMC81M001_WIFI_PASSWORD);
+      timeout = 20000U;
+      break;
+    case 4: length = snprintf(cmd, sizeof(cmd), "AT+CIPMUX=0\r\n"); break;
+    case 5:
+      length = snprintf(cmd, sizeof(cmd), "AT+CIPSTART=\"TCP\",\"%s\",%u\r\n",
+                        BMC81M001_SERVER_IP, (unsigned)BMC81M001_SERVER_PORT);
+      timeout = 10000U;
+      break;
+    default:
+      bmc_tcp_disconnect(now);
+      return;
+  }
+  if(length <= 0 || length >= (int)sizeof(cmd))
+  {
+    bmc_tcp_disconnect(now);
+    return;
+  }
+  wifi_operation = WIFI_CONNECT;
+  if(wifi_step == 5U)
+  {
+    printf("[WIFI] CIPSTART TCP %s:%u\r\n", BMC81M001_SERVER_IP, (unsigned)BMC81M001_SERVER_PORT);
+  }
+  else
+  {
+    printf("[WIFI] %s\r\n", bmc_tcp_stage());
+  }
+  bmc_tcp_begin(cmd, WIFI_CONNECT, timeout, now);
+}
+
+static void bmc_tcp_tick(uint32_t now)
+{
+  char cmd[40];
+  uint8_t success;
+  if(wifi_state == WIFI_BACKOFF)
+  {
+    if((uint32_t)(now - wifi_since) < BMC81M001_WIFI_RECONNECT_MS)
+    {
+      return;
+    }
+    wifi_step = 0U;
+    wifi_state = WIFI_START;
+  }
+  if(wifi_state == WIFI_START)
+  {
+    if(wifi_close_required)
+      bmc_tcp_begin("AT+CIPCLOSE\r\n", WIFI_CLOSE, 3000U, now);
+    else
+      bmc_tcp_connect_step(now);
+    return;
+  }
+  if(wifi_state == WIFI_TX)
+  {
+    if(bmc_tcp_tx_done(BMC81M001_USART_PORT, &wifi_tx))
+    {
+      wifi_state = WIFI_REPLY;
+      wifi_since = now;
+    }
+    else
+    {
+      if((uint32_t)(now - wifi_since) >= WIFI_TX_TIMEOUT_MS)
+      {
+        bmc_tcp_fail(now, "UART TX timeout");
+      }
+      return;
+    }
+  }
+  if(wifi_state == WIFI_REPLY)
+  {
+    if(wifi_operation == WIFI_CLOSE)
+    {
+      /* ERROR is also returned if the previous socket is already closed. */
+      if(bmc_tcp_result_line(wifi_at, "OK") || bmc_tcp_result_line(wifi_at, "ERROR") ||
+         bmc_tcp_result_line(wifi_at, "CLOSED"))
+      {
+        wifi_close_required = 0U;
+        wifi_state = WIFI_START;
+        bmc_tcp_reset_at_capture();
+      }
+      else if((uint32_t)(now - wifi_since) >= wifi_timeout)
+        bmc_tcp_fail(now, "close timeout");
+      return;
+    }
+    success = 0U;
+    /* ALREADY CONNECT may be followed by ERROR on some ESP-AT versions. */
+    if(wifi_operation == WIFI_CONNECT && wifi_step == 5U &&
+       bmc_tcp_result_line(wifi_at, "ALREADY CONNECT"))
+    {
+      success = 1U;
+    }
+    if(!success && (bmc_tcp_result_line(wifi_at, "ERROR") ||
+                   bmc_tcp_result_line(wifi_at, "FAIL") ||
+                   bmc_tcp_result_line(wifi_at, "SEND FAIL") || strstr(wifi_at, "busy p")))
+    {
+      const char *reason = strstr(wifi_at, "busy p") ? "module busy" :
+                           bmc_tcp_result_line(wifi_at, "ERROR") ? "ERROR reply" : "FAIL reply";
+      bmc_tcp_fail(now, reason);
+      return;
+    }
+    if(wifi_operation == WIFI_CONNECT)
+    {
+      success = success || bmc_tcp_result_line(wifi_at, "OK");
+    }
+    else if(wifi_operation == WIFI_SEND_PROMPT)
+    {
+      success = strstr(wifi_at, ">") != NULL;
+    }
+    else
+    {
+      success = bmc_tcp_result_line(wifi_at, "SEND OK");
+    }
+    if(!success)
+    {
+      if((uint32_t)(now - wifi_since) >= wifi_timeout)
+      {
+        bmc_tcp_fail(now, "reply timeout");
+      }
+      return;
+    }
+    if(wifi_operation == WIFI_CONNECT)
+    {
+      wifi_step++;
+      if(wifi_step == 6U)
+      {
+        wifi_connected = 1U;
+        printf("[WIFI] TCP connected %s:%u\r\n", BMC81M001_SERVER_IP, (unsigned)BMC81M001_SERVER_PORT);
+        wifi_state = WIFI_ONLINE;
+        if(tcp_callbacks.link_changed) tcp_callbacks.link_changed(1U);
+      }
+      else
+      {
+        wifi_state = WIFI_START;
+      }
+      bmc_tcp_reset_at_capture();
+    }
+    else if(wifi_operation == WIFI_SEND_PROMPT)
+    {
+      bmc_tcp_begin_bytes(bmc_tcp_send_data() + send_offset, send_chunk,
+                             WIFI_SEND_ACK, 5000U, now);
+    }
+    else
+    {
+      send_offset = (uint16_t)(send_offset + send_chunk);
+      if(send_offset >= bmc_tcp_send_length())
+      {
+        if(send_kind == SEND_PACKET)
+        {
+          uint32_t completed_token = packets[packet_head].token;
+          packet_head = (uint8_t)((packet_head + 1U) % BMC81M001_PACKET_COUNT);
+          --packet_count;
+          if(tcp_callbacks.packet_sent) tcp_callbacks.packet_sent(completed_token);
+        }
+        else
+        {
+          event_head = (uint8_t)((event_head + 1U) % EVENT_COUNT);
+          --event_count;
+        }
+        send_kind = SEND_NONE;
+        send_offset = 0U;
+      }
+      wifi_state = WIFI_ONLINE;
+      bmc_tcp_reset_at_capture();
+    }
+    return;
+  }
+  if(wifi_state == WIFI_ONLINE)
+  {
+    if(send_kind == SEND_NONE)
+    {
+      /* Short records drain between complete retained packets. */
+      if(event_count != 0U) send_kind = SEND_CONTROL;
+      else if(packet_count != 0U) send_kind = SEND_PACKET;
+      else return;
+      send_offset = 0U;
+    }
+    uint16_t remaining = (uint16_t)(bmc_tcp_send_length() - send_offset);
+    send_chunk = remaining > WIFI_CHUNK_SIZE ? WIFI_CHUNK_SIZE : remaining;
+    snprintf(cmd, sizeof(cmd), "AT+CIPSEND=%u\r\n", (unsigned)send_chunk);
+    bmc_tcp_begin(cmd, WIFI_SEND_PROMPT, 4000U, now);
+  }
+}
+
+void BMC81M001_TcpInit(const BMC81M001_TcpCallbacks *callbacks)
+{
+  memset(&tcp_callbacks, 0, sizeof(tcp_callbacks));
+  if(callbacks) tcp_callbacks = *callbacks;
+  packet_head = packet_tail = packet_count = 0U;
+  send_kind = SEND_NONE;
+  send_offset = send_chunk = 0U;
+  wifi_close_required = 0U;
+  wifi_connected = 0U;
+  wifi_step = 0U;
+  wifi_state = WIFI_START;
+  event_head = event_tail = event_count = 0U;
+  ipd_mode = ipd_hn = ipd_match = 0U;
+  ipd_remaining = 0U;
+  bmc_tcp_reset_at_capture();
+  bmc_tcp_tx_cancel(BMC81M001_USART_PORT, &wifi_tx);
+}
+
+void BMC81M001_Process(void)
+{
+  uint32_t now = SysTick_GetTick();
+  bmc_tcp_poll();
+  /* CWMODE/CWJAP can disconnect an old AP before CONNECTED/GOT IP/OK.
+     During AP setup, let the command's final reply or timeout decide success.
+     After CWJAP succeeds, link loss must still cancel TCP/measurement work. */
+  if((wifi_connected || (wifi_step >= 4U && wifi_state != WIFI_BACKOFF)) &&
+     (bmc_tcp_result_line(wifi_at, "CLOSED") ||
+      bmc_tcp_result_line(wifi_at, "WIFI DISCONNECT")))
+  {
+    bmc_tcp_fail(now, "connection lost");
+  }
+  bmc_tcp_tick(now);
+}
+
+uint8_t BMC81M001_IsConnected(void) { return wifi_connected; }
+// END BMC NONBLOCKING TCP

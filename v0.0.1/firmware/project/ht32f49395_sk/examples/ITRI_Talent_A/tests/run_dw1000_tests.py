@@ -12,6 +12,13 @@ from unicorn import Uc, UC_ARCH_ARM, UC_MODE_ARM, UC_HOOK_CODE
 from unicorn.arm_const import UC_ARM_REG_SP, UC_ARM_REG_LR, UC_ARM_REG_R0
 from elftools.elf.elffile import ELFFile
 
+source = (ROOT / 'src/ei_main.cpp').read_text(encoding='utf-8')
+app = source.split('// BEGIN APPLICATION NETWORK PROTOCOL', 1)[1].split('// END APPLICATION NETWORK PROTOCOL', 1)[0]
+source = (ROOT / 'src/bmc81m001.c').read_text(encoding='utf-8')
+transport = source.split('// BEGIN BMC NONBLOCKING TCP', 1)[1].split('// END BMC NONBLOCKING TCP', 1)[0]
+header = (ROOT / 'inc/bmc81m001.h').read_text(encoding='utf-8').split('// BEGIN BMC TCP API', 1)[1].split('// END BMC TCP API', 1)[0]
+(OUT / 'bmc_tcp_api_under_test.inc').write_text(header, encoding='utf-8')
+(OUT / 'wifi_transport_under_test.inc').write_text(transport + app, encoding='utf-8')
 compiler = Path('C:/Program Files (x86)/Arm GNU Toolchain arm-none-eabi/14.2 rel1/bin/arm-none-eabi-gcc.exe')
 elf_path = OUT / 'dw1000_nonblocking_test.elf'
 subprocess.run([str(compiler), '-mcpu=arm926ej-s', '-marm', '-O0', '-g', '-I'+str(ROOT/'inc'),
