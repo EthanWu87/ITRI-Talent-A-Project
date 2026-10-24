@@ -35,4 +35,4 @@ objects/ht32f493x5_int.o: ../src/ht32f493x5_int.c ../inc/ht32f493x5_int.h \
  ../../../../../libraries/drivers/inc/ht32.h ../inc/ht32f493x5_clock.h \
  ../../../../../middlewares/i2c_application_library/i2c_application.h \
  ../inc/mr60bha2.h ../../../../ht32f493x5_board/ht32f493x5_board.h \
- ../inc/hm01b0.h ../inc/dw1000.h
+ ../inc/hm01b0.h ../inc/dw1000.h ../inc/flow_metrics.h

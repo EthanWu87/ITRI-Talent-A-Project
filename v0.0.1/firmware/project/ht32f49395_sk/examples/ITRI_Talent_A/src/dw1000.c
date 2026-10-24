@@ -1,6 +1,7 @@
 #include "dw1000.h"
 #include "bmc81m001.h"
 #include "ei_main.h"
+#include "flow_metrics.h"
 #include "ht32f493x5_int.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,10 +82,13 @@ void dw1000_receive_byte(uint8_t data)
   {
     uwb_ring[uwb_w] = data;
     uwb_w = next;
+    uint32_t used = (next - uwb_r) & UART_MASK;
+    if(used > g_flow_metrics.uwb_rx_peak) g_flow_metrics.uwb_rx_peak = used;
   }
   else
   {
     uwb_drop++;
+    ++g_flow_metrics.uwb_rx_drops;
   }
 }
 

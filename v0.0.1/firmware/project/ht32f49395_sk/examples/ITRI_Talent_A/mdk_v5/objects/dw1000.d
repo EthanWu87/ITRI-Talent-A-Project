@@ -35,5 +35,5 @@ objects/dw1000.o: ../src/dw1000.c ../inc/dw1000.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_usb.h ../inc/bmc81m001.h \
  ../../../../../libraries/drivers/inc/ht32.h ../inc/ht32f493x5_clock.h \
  ../../../../../middlewares/i2c_application_library/i2c_application.h \
- ../inc/ei_main.h ../inc/ht32f493x5_int.h \
+ ../inc/ei_main.h ../inc/flow_metrics.h ../inc/ht32f493x5_int.h \
  C:/Program\ Files\ (x86)/Arm\ GNU\ Toolchain\ arm-none-eabi/14.2\ rel1/arm-none-eabi/include/c++/14.2.1/stdlib.h

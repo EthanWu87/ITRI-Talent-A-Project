@@ -8,8 +8,9 @@
 
 韌體協定（與提供的 ei_main.cpp 相容）:
 IMG_S + WIDTH*HEIGHT bytes 灰階影像 + IMG_E
-INF_S + Predictions (...) 與偵測文字 + INF_E
+INF_S + PRED 摘要或 Predictions (...) 與偵測文字 + INF_E
 例: person (0.95000) [ x: 16, y: 24, width: 24, height: 32 ]
+新摘要例: PRED,person,0.950,16,24,24,32,dsp=10,cls=20,anom=0
 
 必須使用真正的 Edge Impulse 物件偵測模型；僅修改巨集不能轉換模型。
 WIDTH / HEIGHT 必須與韌體實際傳送的裁切影像尺寸一致。
@@ -39,6 +40,17 @@ NUMBER = r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?'
 TIMING_RE = re.compile(
     r'Predictions\s*\(DSP:\s*(\d+)\s*ms\.,\s*'
     r'Classification:\s*(\d+)\s*ms\.,\s*Anomaly:\s*(\d+)\s*ms\.\)'
+)
+PRED_RE = re.compile(
+    r'^\s*PRED,(?P<label>[^,\r\n]+),(?P<value>' + NUMBER + r'),'
+    r'(?P<x>\d+),(?P<y>\d+),(?P<width>\d+),(?P<height>\d+),'
+    r'dsp=(?P<dsp>\d+),cls=(?P<inference>\d+),anom=(?P<anomaly>\d+)\s*$',
+    re.MULTILINE
+)
+PRED_NONE_RE = re.compile(
+    r'^\s*PRED,NONE,dsp=(?P<dsp>\d+),cls=(?P<inference>\d+),'
+    r'anom=(?P<anomaly>\d+)\s*$',
+    re.MULTILINE
 )
 BOX_RE = re.compile(
     r'^[ \t]*(.+?)[ \t]+\((' + NUMBER + r')\)[ \t]*\[[ \t]*'
@@ -115,10 +127,30 @@ def status_font():
 def parse_prediction(text, threshold=CONFIDENCE_THRESHOLD):
     """回傳 timing 與偵測串列；保留同類別的多個物件。"""
     timing = TIMING_RE.search(text)
-    if timing is None:
-        raise ValueError('Missing or invalid Predictions timing header')
-    dsp, inference, anomaly = map(int, timing.groups())
     detections = []
+    if timing is not None:
+        dsp, inference, anomaly = map(int, timing.groups())
+    else:
+        summary = PRED_RE.search(text)
+        empty_summary = PRED_NONE_RE.search(text)
+        if summary is not None:
+            dsp = int(summary.group('dsp'))
+            inference = int(summary.group('inference'))
+            anomaly = int(summary.group('anomaly'))
+            label = summary.group('label').strip()
+            value = float(summary.group('value'))
+            x, y, width, height = (int(summary.group(name))
+                                    for name in ('x', 'y', 'width', 'height'))
+            if (math.isfinite(value) and 0 < value <= 1 and
+                    value >= threshold and width > 0 and height > 0):
+                detections.append(dict(label=label, value=value, x=x, y=y,
+                                       width=width, height=height))
+        elif empty_summary is not None:
+            dsp = int(empty_summary.group('dsp'))
+            inference = int(empty_summary.group('inference'))
+            anomaly = int(empty_summary.group('anomaly'))
+        else:
+            raise ValueError('Missing or invalid Predictions timing header')
     for match in BOX_RE.finditer(text):
         label, value, x, y, width, height = match.groups()
         value = float(value)

@@ -27,6 +27,7 @@
 
 /* Includes ------------------------------------------------------------------------------------------------*/
 #include "BMC81M001.h"
+#include "flow_metrics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "ht32f493x5_int.h"
@@ -634,7 +635,10 @@ void BMC81M001_RxIrqHandler(void)
     {
       BMC81M001_rxBuffer[BMC81M001_rxHead] = data;
       BMC81M001_rxHead = nextHead;
+      uint32_t used = (nextHead + BMC81M001_RX_BUFFER_SIZE - BMC81M001_rxTail) % BMC81M001_RX_BUFFER_SIZE;
+      if(used > g_flow_metrics.wifi_rx_peak) g_flow_metrics.wifi_rx_peak = used;
     }
+    else ++g_flow_metrics.wifi_rx_drops;
   }
 }
 
@@ -731,58 +735,81 @@ int BMC81M001_arrayFind(char array1[],char array2)
 #define EVENT_MAX BMC81M001_CONTROL_MAX
 #define EVENT_COUNT BMC81M001_CONTROL_COUNT
 #define WIFI_TX_TIMEOUT_MS 1000U
+/* DMA1 Channel3 is reserved for UART4 TX. Camera/image TX use Channels2/1.
+ * Short AT commands are copied; large chunks borrow the retained packet until
+ * SEND OK. Cancelling DMA always precedes releasing or reusing queue storage.
+ */
 typedef struct
 {
-  uint8_t data[WIFI_CHUNK_SIZE];
-  volatile uint16_t length;
-  volatile uint16_t position;
+  uint8_t command[WIFI_TX_MAX];
+  uint8_t active, failed;
 } bmc_tcp_tx_t;
-
 static bmc_tcp_tx_t wifi_tx;
 
-/* Main context owns the buffer until it is published to the TX interrupt. */
-static uint8_t bmc_tcp_tx_bytes(usart_type *port, bmc_tcp_tx_t *tx,
-                               const uint8_t *data, size_t length)
+static void bmc_tcp_dma_init(void)
 {
-  if(data == NULL || length == 0U || length > sizeof(tx->data) || tx->position < tx->length)
-    return 0U;
-  usart_interrupt_enable(port, USART_TDBE_INT, FALSE);
-  memcpy(tx->data, data, length);
-  tx->position = 0U;
-  tx->length = (uint16_t)length;
-  __DMB();
-  usart_interrupt_enable(port, USART_TDBE_INT, TRUE);
-  return 1U;
-}
-
-void BMC81M001_TxIrqHandler(void)
-{
-  usart_type *port = BMC81M001_USART_PORT;
-  bmc_tcp_tx_t *tx = &wifi_tx;
-  if(usart_interrupt_flag_get(port, USART_TDBE_FLAG) == RESET)
-  {
-    return;
-  }
-  if(tx->position < tx->length)
-  {
-    usart_data_transmit(port, tx->data[tx->position++]);
-  }
-  if(tx->position >= tx->length)
-  {
-    usart_interrupt_enable(port, USART_TDBE_INT, FALSE);
-  }
-}
-
-static uint8_t bmc_tcp_tx_done(usart_type *port, const bmc_tcp_tx_t *tx)
-{
-  return tx->position == tx->length && usart_flag_get(port, USART_TDC_FLAG) != RESET;
+  dma_init_type config;
+  crm_periph_clock_enable(CRM_DMA1_PERIPH_CLOCK, TRUE);
+  dma_reset(DMA1_CHANNEL3);
+  dma_default_para_init(&config);
+  config.peripheral_base_addr = (uint32_t)&BMC81M001_USART_PORT->dt;
+  config.direction = DMA_DIR_MEMORY_TO_PERIPHERAL;
+  config.peripheral_inc_enable = FALSE;
+  config.memory_inc_enable = TRUE;
+  config.peripheral_data_width = DMA_PERIPHERAL_DATA_WIDTH_BYTE;
+  config.memory_data_width = DMA_MEMORY_DATA_WIDTH_BYTE;
+  config.loop_mode_enable = FALSE;
+  config.priority = DMA_PRIORITY_LOW;
+  dma_init(DMA1_CHANNEL3, &config);
+  dma_flexible_config(DMA1, FLEX_CHANNEL3, DMA_FLEXIBLE_UART4_TX);
 }
 
 static void bmc_tcp_tx_cancel(usart_type *port, bmc_tcp_tx_t *tx)
 {
-  usart_interrupt_enable(port, USART_TDBE_INT, FALSE);
-  tx->position = 0U;
-  tx->length = 0U;
+  usart_dma_transmitter_enable(port, FALSE);
+  dma_channel_enable(DMA1_CHANNEL3, FALSE);
+  dma_flag_clear(DMA1_GL3_FLAG);
+  tx->active = tx->failed = 0U;
+}
+
+static uint8_t bmc_tcp_tx_bytes(usart_type *port, bmc_tcp_tx_t *tx,
+                               const uint8_t *data, size_t length)
+{
+  if(data == NULL || length == 0U || length > WIFI_CHUNK_SIZE || tx->active)
+    return 0U;
+  if(length <= sizeof(tx->command))
+  {
+    memcpy(tx->command, data, length);
+    data = tx->command;
+  }
+  dma_channel_enable(DMA1_CHANNEL3, FALSE);
+  dma_flag_clear(DMA1_GL3_FLAG);
+  DMA1_CHANNEL3->maddr = (uint32_t)data;
+  dma_data_number_set(DMA1_CHANNEL3, (uint16_t)length);
+  tx->failed = 0U;
+  tx->active = 1U;
+  __DMB();
+  dma_channel_enable(DMA1_CHANNEL3, TRUE);
+  usart_dma_transmitter_enable(port, TRUE);
+  return 1U;
+}
+
+static uint8_t bmc_tcp_tx_done(usart_type *port, bmc_tcp_tx_t *tx)
+{
+  if(!tx->active) return !tx->failed;
+  if(dma_flag_get(DMA1_DTERR3_FLAG) != RESET)
+  {
+    bmc_tcp_tx_cancel(port, tx);
+    tx->failed = 1U;
+    return 0U;
+  }
+  if(dma_flag_get(DMA1_FDT3_FLAG) == RESET) return 0U;
+  usart_dma_transmitter_enable(port, FALSE);
+  dma_channel_enable(DMA1_CHANNEL3, FALSE);
+  if(usart_flag_get(port, USART_TDC_FLAG) == RESET) return 0U;
+  dma_flag_clear(DMA1_GL3_FLAG);
+  tx->active = 0U;
+  return 1U;
 }
 
 /* Wi-Fi parser: ESP8266 +IPD,<length>:<data>. Handles fragmentation.
@@ -1110,7 +1137,7 @@ static void bmc_tcp_tick(uint32_t now)
     }
     else
     {
-      if((uint32_t)(now - wifi_since) >= WIFI_TX_TIMEOUT_MS)
+      if(wifi_tx.failed || (uint32_t)(now - wifi_since) >= WIFI_TX_TIMEOUT_MS)
       {
         bmc_tcp_fail(now, "UART TX timeout");
       }
@@ -1234,6 +1261,7 @@ static void bmc_tcp_tick(uint32_t now)
 
 void BMC81M001_TcpInit(const BMC81M001_TcpCallbacks *callbacks)
 {
+  bmc_tcp_dma_init();
   memset(&tcp_callbacks, 0, sizeof(tcp_callbacks));
   if(callbacks) tcp_callbacks = *callbacks;
   packet_head = packet_tail = packet_count = 0U;

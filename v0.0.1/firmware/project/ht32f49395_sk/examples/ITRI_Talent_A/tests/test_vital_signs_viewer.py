@@ -14,6 +14,20 @@ spec.loader.exec_module(viewer)
 
 
 class ReferenceViewerTests(unittest.TestCase):
+    def test_parse_new_prediction_summary(self):
+        result = viewer.parse_prediction(
+            'PRED,person,0.950,16,24,24,32,dsp=10,cls=20,anom=0\r\n')
+        self.assertEqual(result[:3], (10, 20, 0))
+        self.assertEqual(result[3], [{
+            'label': 'person', 'value': 0.95, 'x': 16, 'y': 24,
+            'width': 24, 'height': 32,
+        }])
+
+    def test_parse_new_empty_prediction_summary(self):
+        self.assertEqual(
+            viewer.parse_prediction('PRED,NONE,dsp=1,cls=2,anom=3\r\n'),
+            (1, 2, 3, []))
+
     def test_explicit_reference_only(self):
         self.assertEqual(viewer.parse_vital_report(
             'VITALS: heart=80 breath=20 status=reference\r\n'),

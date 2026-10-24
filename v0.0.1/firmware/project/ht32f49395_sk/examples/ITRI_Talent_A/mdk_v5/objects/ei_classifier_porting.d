@@ -35,4 +35,5 @@ objects/ei_classifier_porting.o: ../src/ei_classifier_porting.cpp \
  ../../../../../libraries/drivers/inc/ht32f493x5_acc.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_misc.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_usb.h \
- ../inc/ht32f493x5_clock.h ../inc/ht32f493x5_int.h
+ ../inc/ht32f493x5_clock.h ../inc/ht32f493x5_int.h ../inc/ei_main.h \
+ ../inc/flow_metrics.h

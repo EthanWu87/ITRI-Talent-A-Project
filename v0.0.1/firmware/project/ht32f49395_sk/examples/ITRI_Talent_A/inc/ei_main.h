@@ -9,6 +9,10 @@
 extern "C" {
 #endif
 int ei_main(void);
+/* Main-context only. Finish an active image packet before USART1 text output. */
+uint8_t flow_image_uart_wait(void);
+/* Cooperative service points only; never call from an ISR. */
+void flow_service_background(void);
 uint8_t flow_wifi_send_control(const char *kind, unsigned seq, const char *value);
 #ifdef __cplusplus
 }

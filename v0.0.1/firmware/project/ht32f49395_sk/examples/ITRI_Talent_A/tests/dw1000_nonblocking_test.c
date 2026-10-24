@@ -5,6 +5,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <math.h>
+#include "flow_metrics.h"
+flow_metrics_t g_flow_metrics;
 
 #define _DW1000_H_
 #define _BMC81M001_H
@@ -48,7 +50,7 @@
 #define BMC81M001_SERVER_PORT 5000U
 #define __DMB() ((void)0)
 
-typedef struct { int id, tx_enabled, stalled; } usart_type;
+typedef struct { int id, tx_enabled, stalled; uint32_t dt; } usart_type;
 typedef struct {
   int gpio_drive_strength, gpio_out_type, gpio_mode, gpio_pins, gpio_pull;
 } gpio_init_type;
@@ -90,6 +92,35 @@ static void usart_data_transmit(usart_type *p, uint16_t data)
     transmitted[p->id][transmitted_n[p->id]] = 0;
   }
 }
+/* Model UART4 DMA independently of the main-loop polling cadence. */
+enum { CRM_DMA1_PERIPH_CLOCK = 1, FLEX_CHANNEL3 = 3, DMA_FLEXIBLE_UART4_TX = 32,
+       DMA_DIR_MEMORY_TO_PERIPHERAL = 1, DMA_PERIPHERAL_DATA_WIDTH_BYTE = 1,
+       DMA_MEMORY_DATA_WIDTH_BYTE = 1, DMA_PRIORITY_LOW = 0,
+       DMA1_GL3_FLAG = 0x100, DMA1_FDT3_FLAG = 0x200, DMA1_DTERR3_FLAG = 0x800 };
+typedef struct { uint32_t maddr; } mock_dma_channel_t;
+typedef struct { uint32_t peripheral_base_addr, memory_base_addr, buffer_size,
+    direction, peripheral_inc_enable, memory_inc_enable, peripheral_data_width,
+    memory_data_width, loop_mode_enable, priority; } dma_init_type;
+static mock_dma_channel_t mock_dma_channel;
+static unsigned mock_dma_count, mock_dma_position, mock_dma_flags, mock_dma_enabled;
+#define DMA1 1
+#define DMA1_CHANNEL3 (&mock_dma_channel)
+static void dma_reset(mock_dma_channel_t *p) { (void)p; mock_dma_enabled = 0; }
+static void dma_default_para_init(dma_init_type *p) { memset(p,0,sizeof(*p)); }
+static void dma_init(mock_dma_channel_t *p, dma_init_type *c) { (void)p;(void)c; }
+static void dma_flexible_config(int d,int ch,int r) { (void)d;(void)ch;(void)r; }
+static void dma_channel_enable(mock_dma_channel_t *p,int on) { (void)p;mock_dma_enabled=on; }
+static void dma_flag_clear(unsigned f) { (void)f;mock_dma_flags=0; }
+static int dma_flag_get(unsigned f) { return mock_dma_flags & f; }
+static void dma_data_number_set(mock_dma_channel_t *p,unsigned n) { (void)p;mock_dma_count=n;mock_dma_position=0; }
+static void usart_dma_transmitter_enable(usart_type *p,int on) { p->tx_enabled=on; }
+static void mock_dma_step(void) {
+  if(mock_dma_enabled && mock_wifi.tx_enabled && !mock_wifi.stalled && mock_dma_position < mock_dma_count) {
+    const uint8_t *p=(const uint8_t *)mock_dma_channel.maddr;
+    usart_data_transmit(&mock_wifi,p[mock_dma_position++]);
+    if(mock_dma_position == mock_dma_count) mock_dma_flags |= DMA1_FDT3_FLAG;
+  }
+}
 static bool BMC81M001_readByte(uint8_t *data)
 {
   if(mock_rx_r == mock_rx_w) return false;
@@ -110,7 +141,7 @@ static void pump(void)
   unsigned i;
   for(i=0; i<WIFI_CHUNK_SIZE && (mock_wifi.tx_enabled || mock_uwb.tx_enabled); i++)
   {
-    BMC81M001_TxIrqHandler();
+    mock_dma_step();
     dw1000_tx_irq_handler(&mock_uwb);
   }
 }
@@ -286,6 +317,11 @@ static int test_stalled_tx_and_wrap(void)
   fixture(); mock_now=UINT32_MAX-100U; service(); service();
   tick(2500); CHECK(wifi_state == WIFI_BACKOFF);
   tick(3000); CHECK(wifi_state == WIFI_TX);
+  /* DMA errors abort immediately and release borrowed packet storage. */
+  fixture(); mock_wifi.stalled=1; service();
+  mock_dma_flags = DMA1_DTERR3_FLAG;
+  service();
+  CHECK(wifi_state == WIFI_BACKOFF && !mock_wifi.tx_enabled && !mock_dma_enabled);
   return 0;
 }
 static int test_tcp_timeout_and_payload(void)

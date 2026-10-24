@@ -31,10 +31,13 @@
 #include "mr60bha2.h"
 #include "hm01b0.h"
 #include "dw1000.h"
+#include "flow_metrics.h"
 
 extern void flow_buzzer_tick(uint32_t now);
 
 __IO uint32_t uwTick = 0; 
+static volatile uint32_t tick_epoch;
+flow_metrics_t g_flow_metrics;
 
 /** @addtogroup HT32F493x5_periph_examples
   * @{
@@ -139,7 +142,7 @@ void PendSV_Handler(void)
   */
 void SysTick_Handler(void)
 {
-	uwTick++;             
+	if(++uwTick == 0U) ++tick_epoch;
   flow_buzzer_tick(uwTick);
 	
 	/* toggle led */
@@ -152,6 +155,31 @@ void SysTick_Handler(void)
 uint32_t SysTick_GetTick(void)
 {
 	return uwTick;   
+}
+
+/* Snapshot tick + down-counter atomically, including a pending tick interrupt.
+ * SysTick runs at AHB / 1 and is initialized to a 1 ms period in main().
+ */
+uint64_t SysTick_GetTimeUs(void)
+{
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  uint32_t epoch = tick_epoch;
+  uint32_t ms = uwTick;
+  uint32_t reload = SysTick->LOAD;
+  uint32_t value = SysTick->VAL;
+  uint32_t pending = 0U;
+  if(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk)
+  {
+    pending = 1U;
+    if(++ms == 0U) ++epoch;
+    value = SysTick->VAL;
+  }
+  __set_PRIMASK(primask);
+  uint64_t ticks = ((uint64_t)epoch << 32) | ms;
+  /* At the exact wrap, VAL may still be zero before the counter reloads. */
+  uint32_t elapsed = pending && value == 0U ? 0U : reload - value;
+  return ticks * 1000ULL + ((uint64_t)elapsed * 1000ULL) / (reload + 1U);
 }
 
 void SysTick_DelayMs(uint32_t milliseconds)
@@ -184,7 +212,6 @@ void UART8_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
   BMC81M001_RxIrqHandler();
-  BMC81M001_TxIrqHandler();
 }
 
 /**

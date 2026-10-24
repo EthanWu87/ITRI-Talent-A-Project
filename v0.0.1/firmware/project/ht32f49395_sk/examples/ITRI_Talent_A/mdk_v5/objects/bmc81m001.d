@@ -35,5 +35,6 @@ objects/bmc81m001.o: ../src/bmc81m001.c ../inc/BMC81M001.h \
  ../../../../../libraries/drivers/inc/ht32f493x5_usb.h \
  ../inc/ht32f493x5_clock.h \
  ../../../../../middlewares/i2c_application_library/i2c_application.h \
+ ../inc/flow_metrics.h \
  C:/Program\ Files\ (x86)/Arm\ GNU\ Toolchain\ arm-none-eabi/14.2\ rel1/arm-none-eabi/include/c++/14.2.1/stdlib.h \
  ../inc/ht32f493x5_int.h

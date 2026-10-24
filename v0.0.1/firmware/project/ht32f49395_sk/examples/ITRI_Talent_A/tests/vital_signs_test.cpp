@@ -6,6 +6,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include "flow_metrics.h"
+flow_metrics_t g_flow_metrics;
 static uint32_t fake_now;
 static uint32_t SysTick_GetTick(void) { return fake_now; }
 #include "mr60bha2_under_test.inc"
@@ -13,11 +15,12 @@ static uint32_t SysTick_GetTick(void) { return fake_now; }
 #define EI_BUFFER_SIZE 9216U
 static uint8_t ei_img_crop_buffer[EI_BUFFER_SIZE];
 static unsigned fall_queue_calls;
+static bool reject_fall_queue;
 static struct { uint8_t level, valid, first_pixel; float heart, breath; } queued_falls[8];
 static uint8_t flow_wifi_queue_fall_event(uint8_t level, uint8_t valid,
                                       float heart, float breath, const uint8_t *image, uint32_t size)
 {
-    if(fall_queue_calls >= 8 || size != EI_BUFFER_SIZE) return 0;
+    if(reject_fall_queue || fall_queue_calls >= 8 || size != EI_BUFFER_SIZE) return 0;
     queued_falls[fall_queue_calls].level = level;
     queued_falls[fall_queue_calls].valid = valid;
     queued_falls[fall_queue_calls].heart = heart;
@@ -310,6 +313,22 @@ int main(void)
     CHECK(fall_queue_calls == 1);
     fake_now = 100 + HM01B0_FALL_HOLD_MS; flow_process_inference_result(&fall);
     CHECK(fall_queue_calls == 2 && queued_falls[1].level == 2);
+    ++test_number;
+    // Retry preserves the exact crop/vitals; a full queue cannot hold inference forever.
+    reset(); reject_fall_queue = true;
+    memset(ei_img_crop_buffer, 0x55, sizeof(ei_img_crop_buffer));
+    flow_send_fall_event(1U);
+    CHECK(pending_fall_levels == (1U << 1));
+    fake_now = 499; flow_retry_fall_events();
+    CHECK(pending_fall_levels && fall_queue_calls == 0);
+    reject_fall_queue = false; flow_retry_fall_events();
+    CHECK(!pending_fall_levels && fall_queue_calls == 1 && queued_falls[0].first_pixel == 0x55);
+    ++test_number;
+    reject_fall_queue = true; fake_now = UINT32_MAX - 100U;
+    flow_send_fall_event(2U);
+    fake_now += FALL_QUEUE_RETRY_MS;
+    flow_retry_fall_events();
+    CHECK(!pending_fall_levels && g_flow_metrics.event_drops == 1);
     ++test_number;
     return 0;
 }

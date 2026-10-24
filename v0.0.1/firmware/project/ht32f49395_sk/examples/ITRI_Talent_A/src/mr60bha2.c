@@ -1,7 +1,83 @@
 #include "mr60bha2.h"
+#include "flow_metrics.h"
 #include <string.h>
+#include <math.h>
 #include "ht32f493x5_int.h"
-#include "vital_signs_filter.h"
+
+#define VITAL_SIGNS_WINDOW_MS 3000U
+#define VITAL_SIGNS_WINDOW_CAPACITY 64U
+
+typedef struct
+{
+  float value;
+  uint32_t at;
+} vital_signs_sample_t;
+
+typedef struct
+{
+  vital_signs_sample_t samples[VITAL_SIGNS_WINDOW_CAPACITY];
+  uint32_t started_at;
+  uint16_t head;
+  uint16_t count;
+  bool collecting;
+} vital_signs_window_t;
+
+static void vital_signs_window_reset(vital_signs_window_t *window)
+{
+  window->head = 0U;
+  window->count = 0U;
+  window->collecting = false;
+}
+
+static void vital_signs_window_expire(vital_signs_window_t *window, uint32_t now)
+{
+  while(window->count != 0U &&
+        (uint32_t)(now - window->samples[window->head].at) >= VITAL_SIGNS_WINDOW_MS)
+  {
+    window->head = (uint16_t)((window->head + 1U) % VITAL_SIGNS_WINDOW_CAPACITY);
+    --window->count;
+  }
+  if(window->count == 0U)
+    vital_signs_window_reset(window);
+}
+
+static void vital_signs_window_push(vital_signs_window_t *window,
+                                    uint32_t now, float value)
+{
+  vital_signs_window_expire(window, now);
+  if(!isfinite(value) || value < 0.0f)
+  {
+    vital_signs_window_reset(window);
+    return;
+  }
+  if(window->count == VITAL_SIGNS_WINDOW_CAPACITY)
+    vital_signs_window_reset(window);
+  if(!window->collecting)
+  {
+    window->started_at = now;
+    window->collecting = true;
+  }
+  uint16_t tail = (uint16_t)((window->head + window->count) %
+                             VITAL_SIGNS_WINDOW_CAPACITY);
+  window->samples[tail].value = value;
+  window->samples[tail].at = now;
+  ++window->count;
+}
+
+static bool vital_signs_window_mean(vital_signs_window_t *window,
+                                    uint32_t now, float *mean)
+{
+  vital_signs_window_expire(window, now);
+  if(!window->collecting || window->count < 2U ||
+     (uint32_t)(now - window->started_at) < VITAL_SIGNS_WINDOW_MS)
+    return false;
+
+  double sum = 0.0;
+  for(uint16_t i = 0U; i < window->count; ++i)
+    sum += window->samples[(window->head + i) % VITAL_SIGNS_WINDOW_CAPACITY].value;
+  *mean = (float)(sum / window->count);
+  return true;
+}
 
 /* Static variable */
 static volatile uint8_t rx_buffer[MR60BHA2_RX_BUFFER_SIZE];
@@ -530,12 +606,15 @@ void mr60bha2_receive_byte(uint8_t data)
   uint16_t next = (rx_write_index + 1U) % MR60BHA2_RX_BUFFER_SIZE;
   if(next == rx_read_index)
   {
+    ++g_flow_metrics.radar_rx_drops;
     rx_overflow = true;
     return;
   }
   rx_buffer[rx_write_index] = data;
   rx_received_at[rx_write_index] = SysTick_GetTick();
   rx_write_index = next;
+  uint32_t used = (next + MR60BHA2_RX_BUFFER_SIZE - rx_read_index) % MR60BHA2_RX_BUFFER_SIZE;
+  if(used > g_flow_metrics.radar_rx_peak) g_flow_metrics.radar_rx_peak = used;
 }
 
 void mr60bha2_process(void)

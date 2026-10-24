@@ -20,7 +20,8 @@
 #include "ht32f493x5_board.h"
 #include "ht32f493x5_clock.h"
 #include "ht32f493x5_int.h"
-
+#include "ei_main.h"
+#include "flow_metrics.h"
 #include <stddef.h> // for size_t
 #include <string.h> // for memse
 #include <stdarg.h>
@@ -39,12 +40,14 @@ typedef enum
 
 HT_StatusTypeDef HT_UART_Transmit( const uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
-	uint32_t tickstart = SysTick_GetTick();
-
 	if((pData == NULL) || (Size == 0))
 	{
 		return HT_ERROR;
 	}
+
+	/* An inference diagnostic must not become part of the raw image payload. */
+	flow_image_uart_wait();
+	uint32_t tickstart = SysTick_GetTick();
 
 	while(Size > 0)
 	{
@@ -72,8 +75,9 @@ HT_StatusTypeDef HT_UART_Transmit( const uint8_t *pData, uint16_t Size, uint32_t
 	return HT_OK;
 }
 
-__attribute__((weak)) EI_IMPULSE_ERROR ei_run_impulse_check_canceled()
+EI_IMPULSE_ERROR ei_run_impulse_check_canceled()
 {
+	flow_service_background();
 	return EI_IMPULSE_OK;
 }
 
@@ -81,24 +85,26 @@ __attribute__((weak)) EI_IMPULSE_ERROR ei_sleep(int32_t time_ms)
 {
 	if(time_ms > 0)
 	{
-		SysTick_DelayMs((uint32_t)time_ms);
+		uint32_t started = SysTick_GetTick();
+		while((uint32_t)(SysTick_GetTick() - started) < (uint32_t)time_ms)
+			flow_service_background();
 	}
 	return EI_IMPULSE_OK;
 }
 
 uint64_t ei_read_timer_ms()
 {
-	return SysTick_GetTick();
+	return SysTick_GetTimeUs() / 1000ULL;
 }
 
 uint64_t ei_read_timer_us()
 {
-	return SysTick_GetTick() * 1000;
+	return SysTick_GetTimeUs();
 }
 
-__attribute__((weak)) void ei_printf(const char *format, ...)
+void ei_printf(const char *format, ...)
 {
-	char buffer[1024] = {0};
+	char buffer[256];
 	int length;
 	va_list myargs;
 	va_start(myargs, format);
@@ -107,79 +113,36 @@ __attribute__((weak)) void ei_printf(const char *format, ...)
 
 	if(length > 0)
 	{
+		if(length >= (int)sizeof(buffer)) length = sizeof(buffer) - 1;
 		//uart_print(buffer, (uint16_t)length);
 		HT_UART_Transmit((uint8_t *)buffer, length, 5000);
 	}
 }
 
-__attribute__((weak)) void ei_printf_float(float f)
+void ei_printf_float(float f)
 {
-	float n = f;
-
-	static double PRECISION = 0.00001;
-	static int MAX_NUMBER_STRING_SIZE = 32;
-
-	char s[MAX_NUMBER_STRING_SIZE];
-
-	if(n == 0.0)
-	{
-		strcpy(s, "0");
-	}
-	else 
-	{
-		int digit, m;
-		char *c = s;
-		int neg = (n < 0);
-		if(neg)
-		{
-			n = -n;
-		}
-		// calculate magnitude
-		m = log10(n);
-		if(neg)
-		{
-			*(c++) = '-';
-		}
-		if(m < 1.0)
-		{
-			m = 0;
-		}
-		// convert the number
-		while(n > PRECISION || m >= 0)
-		{
-			double weight = pow(10.0, m);
-			if(weight > 0 && !isinf(weight))
-			{
-				digit = floor(n / weight);
-				n -= (digit * weight);
-				*(c++) = '0' + digit;
-			}
-			if(m == 0 && n > 0)
-			{
-				*(c++) = '.';
-			}
-
-			m--;
-		}
-
-		*(c) = '\0';
-	}
-
-
-	ei_printf("%s", s);
+  /* Bounded conversion also handles NaN/Inf and very large values. */
+  if(isnan(f))
+    ei_printf("nan");
+  else if(isinf(f))
+    ei_printf("%s", signbit(f) ? "-inf" : "inf");
+  else if(fabsf(f) < 1000000.0f)
+    ei_printf("%.5f", (double)f);
+  else
+    ei_printf("%.5g", (double)f);
 }
 
-__attribute__((weak)) void *ei_malloc(size_t size)
+void *ei_malloc(size_t size)
 {
 	return malloc(size);
 }
 
-__attribute__((weak)) void *ei_calloc(size_t nitems, size_t size)
+void *ei_calloc(size_t nitems, size_t size)
 {
 	return calloc(nitems, size);
 }
 
-__attribute__((weak)) void ei_free(void *ptr)
+void ei_free(void *ptr)
 {
 	free(ptr);
 }

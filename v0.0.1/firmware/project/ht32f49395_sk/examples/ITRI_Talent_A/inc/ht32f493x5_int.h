@@ -51,6 +51,7 @@ void DebugMon_Handler(void);
 void PendSV_Handler(void);
 void SysTick_Handler(void);
 uint32_t SysTick_GetTick(void);
+uint64_t SysTick_GetTimeUs(void);
 /* Main-context delay that preserves the running SysTick interrupt. */
 void SysTick_DelayMs(uint32_t milliseconds);
 void UART7_IRQHandler(void);

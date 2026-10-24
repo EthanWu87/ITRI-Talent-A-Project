@@ -108,7 +108,6 @@ typedef struct {
  * Do not mix this service with the legacy blocking AT/TCP/MQTT API. */
 void BMC81M001_TcpInit(const BMC81M001_TcpCallbacks *callbacks);
 void BMC81M001_Process(void);
-void BMC81M001_TxIrqHandler(void);
 uint8_t BMC81M001_IsConnected(void);
 uint8_t BMC81M001_ControlSlotsFree(void);
 /* Short records: copy now, require connection, discard on disconnect. */
